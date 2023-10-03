@@ -2,19 +2,38 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
 )
 
 type WSMessage struct {
-	Text string `json:"msg"`
+	Text      string    `json:"msg"`
+	Timestamp time.Time `json:"timestamp"`
+	ClientID  string    `json:"clientID"` // should corelate with WSClient ID
+}
+
+type WSClient struct {
+	ID        string
+	Conn      *websocket.Conn
+	WriteChan chan []byte
+}
+
+type Chatroom struct {
+	clientMap sync.Map
+}
+
+var chatroom Chatroom = Chatroom{
+	clientMap: sync.Map{},
 }
 
 func main() {
@@ -82,26 +101,89 @@ func connectWebSocket(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error("Failed to accept websocket: %v", err)
 	}
-	defer c.Close(websocket.StatusInternalError, "the sky is falling")
+	defer c.Close(websocket.StatusInternalError, "closing connection")
 
-	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
-	defer cancel()
-
-	var wsm WSMessage
-	err = wsjson.Read(ctx, c, &wsm)
-	if err != nil {
-		logger.Error("Failed to read json: %v", err)
+	wsClient := WSClient{
+		Conn:      c,
+		WriteChan: make(chan []byte, 10),
 	}
 
-	logger.Info(fmt.Sprintf("received: %s", wsm.Text))
+	defer close(wsClient.WriteChan)
 
-	if err := c.Write(ctx, websocket.MessageText, []byte(fmt.Sprintf("received text: %s", wsm.Text))); err != nil {
-		logger.Error("Failed to write message: %v", err)
-	}
+	chatroom.addClient(&wsClient)
 
-	c.Close(websocket.StatusNormalClosure, "")
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var wsm WSMessage
+		for {
+			if err := wsjson.Read(r.Context(), c, &wsm); err != nil {
+				logger.Error("Failed to read json: %v", err)
+				break
+			}
+
+			logger.Info(fmt.Sprintf("received: %s", wsm.Text))
+
+			wsm.Timestamp = time.Now()
+			fmt.Println(wsClient.ID)
+			wsm.ClientID = wsClient.ID
+
+			chatroom.receiveMessage(wsm)
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		for msg := range wsClient.WriteChan {
+			ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+			defer cancel()
+			wsClient.Conn.Write(ctx, websocket.MessageText, msg)
+		}
+	}()
+
+	wg.Wait()
 }
 
-func sendMessagefunc(w http.ResponseWriter, r *http.Request) {
-	// @todo make send message func
+func (c *Chatroom) addClient(client *WSClient) {
+	id := uuid.New()
+	defer func() {
+		client.ID = id.String()
+	}()
+
+	// Account for possible ID duplicates.
+	for {
+		if _, exists := c.clientMap.LoadOrStore(id, *client); exists {
+			id = uuid.New()
+			continue
+		}
+
+		return
+	}
+}
+
+func (c *Chatroom) distributeMessage(message []byte) {
+	slog.Info("distributing message")
+	c.clientMap.Range(func(key, client any) bool {
+		c, ok := client.(WSClient)
+		if !ok {
+			slog.Error(fmt.Sprintf("failed to convert client %s in map range, client type %T", key, client))
+		}
+
+		c.WriteChan <- message
+		return true
+	})
+}
+
+func (c *Chatroom) receiveMessage(msg WSMessage) {
+	// @todo add message to chatroom message history
+	slog.Info("received message")
+	msgRaw, err := json.Marshal(msg)
+	if err != nil {
+		slog.Error(fmt.Sprintf("failed to unmarshal received message: %v", msg))
+		return
+	}
+	c.distributeMessage(msgRaw)
 }
