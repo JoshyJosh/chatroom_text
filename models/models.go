@@ -1,32 +1,11 @@
 package models
 
 import (
-	"sync"
 	"time"
 )
 
-type userMap struct {
-	Map   map[string]*User
-	mutex sync.Mutex
-}
-
-type messageList struct {
-	list  []*Message
-	mutex sync.Mutex
-}
-
-type Chatroom struct {
-	Name        string
-	UserMap     userMap
-	MessageList messageList
-}
-
-type User struct {
-	Name string
-}
-
-type Message struct {
-	timestamp time.Time
-	body      string
-	author    *User
+type WSMessage struct {
+	Text      string    `json:"msg"`
+	Timestamp time.Time `json:"timestamp"`
+	ClientID  string    `json:"clientID"` // should corelate with WSClient ID
 }
