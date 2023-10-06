@@ -60,9 +60,27 @@ func (u User) ReadLoop(ctx context.Context) {
 }
 
 func (u User) WriteLoop(ctx context.Context) {
+	timeout := false
 	for msg := range u.WriteChan {
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-		u.Conn.Write(ctx, websocket.MessageText, msg)
+
+		defer func() {
+			select {
+			case <-ctx.Done():
+				if timeout {
+					return
+				}
+
+				timeout = true
+				slog.Error(fmt.Sprint(ctx.Err()))
+				cancel()
+			default:
+				slog.Info("exiting WriteLoop")
+			}
+		}()
+
+		if err := u.Conn.Write(ctx, websocket.MessageText, msg); err != nil {
+			return
+		}
 	}
 }
