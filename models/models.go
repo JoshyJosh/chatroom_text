@@ -9,3 +9,8 @@ type WSMessage struct {
 	Timestamp time.Time `json:"timestamp"`
 	ClientID  string    `json:"clientID"` // should corelate with WSClient ID
 }
+
+type UserWS struct {
+	ID        string
+	WriteChan chan []byte
+}

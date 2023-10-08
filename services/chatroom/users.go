@@ -5,71 +5,44 @@ import (
 	"chatroom_text/repo"
 	chatroomws "chatroom_text/repo/chatroomws"
 	services "chatroom_text/services"
-	"context"
-	"fmt"
-	"os"
 	"time"
-
-	"golang.org/x/exp/slog"
-	"nhooyr.io/websocket"
-	"nhooyr.io/websocket/wsjson"
 )
 
 type User struct {
-	ID           string
-	Conn         *websocket.Conn
-	WriteChan    chan []byte
+	user         models.UserWS
+	userRepo     repo.UserRepoer
 	chatroomRepo repo.ChatroomRepoer
 }
 
-func GetUserServicer(conn *websocket.Conn) services.UserServicer {
-	user := User{
-		Conn:         conn,
-		WriteChan:    make(chan []byte, 10),
-		chatroomRepo: chatroomws.GetChatroom(),
+func GetUserServicer(writeChan chan []byte) (services.UserServicer, error) {
+	userService := User{
+		chatroomRepo: chatroomws.GetChatroomRepoer(),
+		userRepo:     chatroomws.GetUserRepoer(),
 	}
 
-	id := user.chatroomRepo.AddNewUser(user)
-
-	user.ID = id
-
-	return user
-}
-
-func (u User) GetWriteChan() chan []byte {
-	return u.WriteChan
-}
-
-func (u User) ReadLoop(ctx context.Context) {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-
-	var wsm models.WSMessage
-	for {
-		if err := wsjson.Read(ctx, u.Conn, &wsm); err != nil {
-			logger.Error("Failed to read json: %v", err)
-			break
-		}
-
-		logger.Info(fmt.Sprintf("received: %s", wsm.Text))
-
-		wsm.Timestamp = time.Now()
-		wsm.ClientID = u.ID
-
-		u.chatroomRepo.ReceiveMessage(wsm)
+	userService.user = models.UserWS{
+		WriteChan: writeChan,
 	}
+
+	userService.user.ID = userService.userRepo.AddUser(userService.user)
+	if err := userService.chatroomRepo.AddUser(userService.user); err != nil {
+		return nil, err
+	}
+
+	return userService, nil
 }
 
-func (u User) WriteLoop(ctx context.Context) {
-	for msg := range u.WriteChan {
-		u.writeMsg(ctx, msg)
-	}
+func (u User) ReadMessage(msg models.WSMessage) {
+	msg.Timestamp = time.Now()
+	msg.ClientID = u.user.ID
+	u.chatroomRepo.ReceiveMessage(msg)
 }
 
-func (u User) writeMsg(ctx context.Context, msg []byte) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
+func (u User) WriteMessage(msgRaw []byte) {
+	u.user.WriteChan <- msgRaw
+}
 
-	if err := u.Conn.Write(ctx, websocket.MessageText, msg); err != nil {
-		slog.Error(fmt.Sprint(err))
-	}
+func (u User) RemoveUser() {
+	u.chatroomRepo.RemoveUser(u.user.ID)
+	u.userRepo.RemoveID(u.user.ID)
 }

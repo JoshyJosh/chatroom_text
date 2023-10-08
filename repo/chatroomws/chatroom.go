@@ -6,9 +6,8 @@ import (
 	"sync"
 
 	"chatroom_text/models"
-	"chatroom_text/services"
+	"chatroom_text/repo"
 
-	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
 )
 
@@ -20,37 +19,25 @@ var chatroom chatroomRoster = chatroomRoster{
 	clientMap: &sync.Map{},
 }
 
-func GetChatroom() *chatroomRoster {
+func GetChatroomRepoer() repo.ChatroomRepoer {
 	return &chatroom
 }
 
-func (c chatroomRoster) AddNewUser(user services.UserServicer) string {
-	id := uuid.New()
-
-	for {
-		if _, exists := c.clientMap.LoadOrStore(id, user); exists {
-			id = uuid.New()
-			continue
-		}
-
-		break
-	}
-
-	return id.String()
-}
-
-func (c chatroomRoster) AddUser(id string, user services.UserServicer) error {
-	// Account for possible ID duplicates.
-	if _, exists := c.clientMap.LoadOrStore(id, user); !exists {
-		return fmt.Errorf("clientMap does not have reserved id %s", id)
+func (c chatroomRoster) AddUser(user models.UserWS) error {
+	if _, exists := c.clientMap.LoadOrStore(user.ID, user); exists {
+		return fmt.Errorf("clientMap already has user with ID %s", user.ID)
 	}
 
 	return nil
 }
 
+func (c chatroomRoster) RemoveUser(id string) {
+	c.clientMap.Delete(id)
+}
+
 func (c *chatroomRoster) ReceiveMessage(msg models.WSMessage) {
 	// @todo add message to chatroom message history
-	slog.Info("received message")
+	slog.Info(fmt.Sprintf("received message: %s", msg.Text))
 	msgRaw, err := json.Marshal(msg)
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to unmarshal received message: %v", msg))
@@ -62,12 +49,12 @@ func (c *chatroomRoster) ReceiveMessage(msg models.WSMessage) {
 func (c *chatroomRoster) DistributeMessage(message []byte) {
 	slog.Info("distributing message")
 	c.clientMap.Range(func(key, user any) bool {
-		u, ok := user.(services.UserServicer)
+		u, ok := user.(models.UserWS)
 		if !ok {
 			slog.Error(fmt.Sprintf("failed to convert client %s in map range, client type %T", key, user))
 		}
 
-		u.GetWriteChan() <- message
+		u.WriteChan <- message
 		return true
 	})
 }
