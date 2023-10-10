@@ -2,6 +2,7 @@ package chatroomws
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -12,11 +13,11 @@ import (
 )
 
 type chatroomRoster struct {
-	clientMap *sync.Map
+	userMap *sync.Map
 }
 
 var chatroom chatroomRoster = chatroomRoster{
-	clientMap: &sync.Map{},
+	userMap: &sync.Map{},
 }
 
 func GetChatroomRepoer() repo.ChatroomRepoer {
@@ -24,7 +25,11 @@ func GetChatroomRepoer() repo.ChatroomRepoer {
 }
 
 func (c chatroomRoster) AddUser(user models.UserWS) error {
-	if _, exists := c.clientMap.LoadOrStore(user.ID, user); exists {
+	if user.ID == "" {
+		return errors.New("cannot add user with empty ID")
+	}
+
+	if _, exists := c.userMap.LoadOrStore(user.ID, user); exists {
 		return fmt.Errorf("clientMap already has user with ID %s", user.ID)
 	}
 
@@ -32,7 +37,7 @@ func (c chatroomRoster) AddUser(user models.UserWS) error {
 }
 
 func (c chatroomRoster) RemoveUser(id string) {
-	c.clientMap.Delete(id)
+	c.userMap.Delete(id)
 }
 
 func (c *chatroomRoster) ReceiveMessage(msg models.WSMessage) {
@@ -43,18 +48,20 @@ func (c *chatroomRoster) ReceiveMessage(msg models.WSMessage) {
 		slog.Error(fmt.Sprintf("failed to unmarshal received message: %v", msg))
 		return
 	}
+
 	c.DistributeMessage(msgRaw)
 }
 
-func (c *chatroomRoster) DistributeMessage(message []byte) {
+func (c *chatroomRoster) DistributeMessage(msgRaw []byte) {
 	slog.Info("distributing message")
-	c.clientMap.Range(func(key, user any) bool {
+
+	c.userMap.Range(func(key, user any) bool {
 		u, ok := user.(models.UserWS)
 		if !ok {
 			slog.Error(fmt.Sprintf("failed to convert client %s in map range, client type %T", key, user))
 		}
 
-		u.WriteChan <- message
+		u.WriteChan <- msgRaw
 		return true
 	})
 }
