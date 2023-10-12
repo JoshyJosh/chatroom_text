@@ -1,9 +1,14 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <script src="/static/index.js"></script>
+        <script src="/static/index.js" defer></script>
     </head>
     <body>
-        <p>loaded index</p>
+        <h1>The best most visually intense chatroom</h1>
+        <div id="chatLog" focus></div>
+        <div id="inputDiv">
+            <input type="text" id="chatInput" required minlength="1" maxlength="255" />
+            <input type="button" id="chatButton" value="Send">
+        </div>
     </body>
 </html>
