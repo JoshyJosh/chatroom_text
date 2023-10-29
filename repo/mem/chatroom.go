@@ -1,4 +1,4 @@
-package chatroomws
+package mem
 
 import (
 	"encoding/json"
@@ -14,19 +14,21 @@ import (
 
 type chatroomRoster struct {
 	userMap *sync.Map
+	logs    []models.ChatroomLog
 }
 
 var chatroom chatroomRoster = chatroomRoster{
 	userMap: &sync.Map{},
+	logs:    []models.ChatroomLog{},
 }
 
 func GetChatroomRepoer() repo.ChatroomRepoer {
 	return &chatroom
 }
 
-func (c chatroomRoster) AddUser(user models.UserWS) error {
+func (c chatroomRoster) AddUser(user models.User) error {
 	if user.ID == "" {
-		return errors.New("cannot add user with empty ID")
+		return errors.New("tried to add user with empty ID")
 	}
 
 	if _, exists := c.userMap.LoadOrStore(user.ID, user); exists {
@@ -56,7 +58,7 @@ func (c *chatroomRoster) DistributeMessage(msgRaw []byte) {
 	slog.Info("distributing message")
 
 	c.userMap.Range(func(key, user any) bool {
-		u, ok := user.(models.UserWS)
+		u, ok := user.(models.User)
 		if !ok {
 			slog.Error(fmt.Sprintf("failed to convert client %s in map range, client type %T", key, user))
 		}

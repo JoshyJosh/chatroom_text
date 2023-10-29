@@ -1,4 +1,4 @@
-package chatroomws
+package mem
 
 import (
 	"chatroom_text/models"
@@ -16,10 +16,10 @@ func TestUserWSRosterAddUser(t *testing.T) {
 		userIDMap: &sync.Map{},
 	}
 
-	user1 := models.UserWS{}
+	user1 := models.User{}
 	id1 := testUserWSRoster.AddUser(user1)
 
-	user2 := models.UserWS{}
+	user2 := models.User{}
 	id2 := testUserWSRoster.AddUser(user2)
 
 	assert.NotEqual(id1, id2, "id's should be unique")
@@ -41,7 +41,7 @@ func TestUserWSRosterRemoveUser(t *testing.T) {
 		userIDMap: &sync.Map{},
 	}
 
-	user := models.UserWS{}
+	user := models.User{}
 	id := testUserWSRoster.AddUser(user)
 
 	mapLen := 0

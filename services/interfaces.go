@@ -11,4 +11,6 @@ type UserServicer interface {
 	WriteMessage(msgRaw []byte)
 	// RemoveUser removes user from chatroom and user roster.
 	RemoveUser()
+	// Add user to chatroom and retrieve its logs.
+	EnterChatroom() error
 }

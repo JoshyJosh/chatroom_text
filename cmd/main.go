@@ -8,8 +8,16 @@ import (
 
 	"chatroom_text/handlers"
 
+	"chatroom_text/repo/db"
+
 	"golang.org/x/exp/slog"
 )
+
+func init() {
+	if err := db.InitDB(); err != nil {
+		panic(err)
+	}
+}
 
 func main() {
 	httpPort := fmt.Sprintf(":%s", *(flag.String("port", "8080", "Listen address")))

@@ -1,4 +1,4 @@
-package chatroomws
+package mem
 
 import (
 	"bytes"
@@ -22,7 +22,7 @@ func TestChatroomRosterAddUser(t *testing.T) {
 		userMap: &sync.Map{},
 	}
 
-	user1 := models.UserWS{}
+	user1 := models.User{}
 
 	err := testChatroomRoster.AddUser(user1)
 	assert.NotNil(err, "expected error for missing ID")
@@ -41,7 +41,7 @@ func TestChatroomRosterAddUser(t *testing.T) {
 
 	assert.Equal(1, mapLen, "expected one entry in userMap")
 
-	user2 := models.UserWS{
+	user2 := models.User{
 		ID: user1.ID,
 	}
 
@@ -59,12 +59,12 @@ func TestChatroomRosterUserDistribution(t *testing.T) {
 		userMap: &sync.Map{},
 	}
 
-	user1 := models.UserWS{
+	user1 := models.User{
 		ID:        uuid.New().String(),
 		WriteChan: make(chan []byte, 10),
 	}
 
-	user2 := models.UserWS{
+	user2 := models.User{
 		ID:        uuid.New().String(),
 		WriteChan: make(chan []byte, 10),
 	}

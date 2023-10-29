@@ -1,4 +1,4 @@
-package chatroomws
+package mem
 
 import (
 	"chatroom_text/models"
@@ -22,7 +22,7 @@ func GetUserRepoer() repo.UserRepoer {
 	return userRoster
 }
 
-func (u userWSRoster) AddUser(user models.UserWS) string {
+func (u userWSRoster) AddUser(user models.User) string {
 	slog.Info("adding user to roster")
 	user.ID = uuid.New().String()
 

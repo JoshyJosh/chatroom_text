@@ -54,6 +54,7 @@ type userWebsocketHandle struct {
 	conn        *websocket.Conn
 	readChan    chan []byte
 	writeChan   chan []byte
+	closeChan   chan struct{}
 	userService services.UserServicer
 }
 
@@ -71,18 +72,21 @@ func (userHandle) ConnectWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	c, err := websocket.Accept(w, r, nil)
 	if err != nil {
-		logger.Error("Failed to accept websocket: %v", err)
+		logger.Error("failed to accept websocket: %v", err)
 	}
 	defer c.Close(websocket.StatusInternalError, "closing connection")
 
 	writeChan := make(chan []byte, 10)
 	readChan := make(chan []byte)
+	closeChan := make(chan struct{})
+
+	ctx, cancel := context.WithCancel(r.Context())
 
 	userService, err := chatroom.GetUserServicer(writeChan)
 	if err != nil {
 		logger.Error(err.Error())
 
-		if err := c.Write(r.Context(), websocket.MessageText, []byte(`{"err":"failed to add user to chatroom"}`)); err != nil {
+		if err := c.Write(ctx, websocket.MessageText, []byte(`{"err":"failed to add user to chatroom"}`)); err != nil {
 			logger.Error(err.Error())
 		}
 		return
@@ -93,6 +97,7 @@ func (userHandle) ConnectWebSocket(w http.ResponseWriter, r *http.Request) {
 		conn:        c,
 		readChan:    readChan,
 		writeChan:   writeChan,
+		closeChan:   closeChan,
 		userService: userService,
 	}
 
@@ -100,21 +105,40 @@ func (userHandle) ConnectWebSocket(w http.ResponseWriter, r *http.Request) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		user.WriteLoop(r.Context())
+		user.WriteLoop(ctx)
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		user.ReadLoop(r.Context())
+		if err := user.ReadLoop(ctx); err != nil {
+			cancel()
+		}
 	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := userService.EnterChatroom()
+		if err != nil {
+			cancel()
+		}
+	}()
+
+	// @todo error handling adn graceful exit
 
 	wg.Wait()
 }
 
 func (u userWebsocketHandle) WriteLoop(ctx context.Context) {
-	for msg := range u.writeChan {
-		u.writeMsg(ctx, msg)
+	defer slog.Info("exiting writeloop")
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg := <-u.writeChan:
+			u.writeMsg(ctx, msg)
+		}
 	}
 }
 
@@ -123,16 +147,23 @@ func (u userWebsocketHandle) writeMsg(ctx context.Context, msg []byte) {
 	defer cancel()
 
 	if err := u.conn.Write(ctx, websocket.MessageText, msg); err != nil {
-		slog.Error(fmt.Sprint(err))
+		slog.Error(err.Error())
 	}
 }
 
-func (u userWebsocketHandle) ReadLoop(ctx context.Context) {
+func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
 	var msg models.WSMessage
 	for {
 		if err := wsjson.Read(ctx, u.conn, &msg); err != nil {
+			slog.Info(fmt.Sprintf("got error status: %s", websocket.CloseStatus(err).String()))
+			if websocket.CloseStatus(err) == websocket.StatusAbnormalClosure ||
+				websocket.CloseStatus(err) == websocket.StatusGoingAway {
+				return err
+			}
+
 			slog.Error("Failed to read json: %v", err)
-			break
+			// @todo consider retry
+			continue
 		}
 
 		slog.Info(fmt.Sprintf("received message: %s", msg.Text))

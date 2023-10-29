@@ -1,14 +1,14 @@
 CREATE TABLE chatroom_logs (
-	chatroom_id INTEGER,
-	timestamp   TIMESTAMP,
-	text        TEXT,
-	clientID    UUID,
-	PRIMARY KEY (chatroom_id, timestamp)
+	chatroom_id   VARCHAR(128),
+	log_timestamp TIMESTAMP,
+	log_text      TEXT,
+	client_id     VARCHAR(128),
+	PRIMARY KEY (chatroom_id, log_timestamp)
 );
 
 
 CREATE TABLE clients (
-	clientID UUID,
-	name     VARCHAR(64),
-	PRIMARY KEY (clientID)
+	client_id   VARCHAR(128),
+	client_name VARCHAR(64),
+	PRIMARY KEY (client_id)
 );
