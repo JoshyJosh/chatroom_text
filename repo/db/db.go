@@ -14,6 +14,8 @@ import (
 type chatroomDB struct {
 }
 
+const tsFormat = "2006-01-02T15:04:05"
+
 var db *sqlx.DB
 
 func InitDB() error {
@@ -65,9 +67,15 @@ func (c chatroomDB) GetChatroomLogs(params models.GetDBMessagesParams) ([]models
 func (c chatroomDB) SetChatroomLogs(params models.SetDBMessagesParams) error {
 	slog.Info(fmt.Sprintf("setting log: %v", params))
 	// @todo add inserts from params
-	query := `INSERT INTO chatroom_logs (chatroom_id, log_timestamp, log_text, client_id) VALUES ('123', '2006-10-12', '345', '555')`
-	_, err := db.Exec(query)
-	if err != nil {
+	query := fmt.Sprintf(`
+	INSERT INTO chatroom_logs (chatroom_id, log_timestamp, log_text, client_id) 
+	VALUES ('%s', '%s', '%s', '%s')`,
+		params.ChatroomID.String(),
+		params.Timestamp.Format(tsFormat),
+		params.Text,
+		params.ClientID,
+	)
+	if _, err := db.Exec(query); err != nil {
 		return errors.Wrapf(err, "failed to insert log to chatroom %s", params.ChatroomID)
 	}
 

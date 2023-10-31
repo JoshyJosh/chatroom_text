@@ -26,7 +26,7 @@ func TestChatroomRosterAddUser(t *testing.T) {
 
 	err := testChatroomRoster.AddUser(user1)
 	assert.NotNil(err, "expected error for missing ID")
-	expectedErr := errors.New("cannot add user with empty ID")
+	expectedErr := errors.New("tried to add user with empty ID")
 	assert.Equal(expectedErr, err, "unexpected error for missing ID")
 
 	user1.ID = uuid.New().String()
