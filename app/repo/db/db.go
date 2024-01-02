@@ -21,7 +21,8 @@ var db *sqlx.DB
 func InitDB() error {
 	var err error
 	// open and connect at the same time:
-	db, err = sqlx.Open("postgres", "user=pguser dbname=chatroom password=pgpass host=127.0.0.1 sslmode=disable")
+	// db, err = sqlx.Open("postgres", "user=pguser dbname=chatroom password=pgpass host=127.0.0.1 sslmode=disable")
+	db, err = sqlx.Open("postgres", "user=pguser dbname=chatroom password=pgpass host=postgres sslmode=disable")
 	if err != nil {
 		return errors.Wrap(err, "failed to open db connection")
 	}

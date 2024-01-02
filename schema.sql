@@ -12,3 +12,5 @@ CREATE TABLE clients (
 	client_name VARCHAR(64),
 	PRIMARY KEY (client_id)
 );
+
+CREATE DATABASE supertokens;

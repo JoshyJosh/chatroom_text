@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	kratosClient "github.com/ory/kratos-client-go"
 	"golang.org/x/exp/slog"
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
@@ -23,7 +25,7 @@ func GetUserHandle() userHandle {
 }
 
 // EnterChat adds users to chatroom.
-func (userHandle) EnterChat(w http.ResponseWriter, r *http.Request) {
+func (userHandle) EnterChat(c *gin.Context) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil).WithAttrs(
 		[]slog.Attr{
 			{
@@ -33,12 +35,14 @@ func (userHandle) EnterChat(w http.ResponseWriter, r *http.Request) {
 		},
 	))
 
-	if pusher, ok := w.(http.Pusher); ok {
+	hasActiveSession(c, logger)
+
+	if pusher, ok := c.Writer.(http.Pusher); ok {
 		logger.Info("pushed http2")
 
 		options := &http.PushOptions{
 			Header: http.Header{
-				"Accept-Encoding": r.Header["Accept-Encoding"],
+				"Accept-Encoding": []string{c.GetHeader("Accept-Encoding")},
 			},
 		}
 
@@ -47,7 +51,24 @@ func (userHandle) EnterChat(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	http.ServeFile(w, r, "static/index.html")
+	http.ServeFile(c.Writer, c.Request, "static/index.html")
+}
+
+func hasActiveSession(ctx context.Context, logger *slog.Logger) {
+	logger.Info("testing 123 testing")
+	configuration := kratosClient.NewConfiguration()
+	configuration.Servers = []kratosClient.ServerConfiguration{
+		{
+			URL: "http://ory_proxy:4000/.ory", // Kratos Admin API
+		},
+	}
+	kratosAPI := kratosClient.NewAPIClient(configuration)
+	resp, r, err := kratosAPI.FrontendApi.ToSession(context.Background()).Cookie("ory_Kratos_session").Execute()
+	if err != nil {
+		panic(err)
+	}
+
+	logger.Info(fmt.Sprintf("resp: %#v\n r: %#v\n", resp, r))
 }
 
 type userWebsocketHandle struct {
@@ -58,7 +79,7 @@ type userWebsocketHandle struct {
 	userService services.UserServicer
 }
 
-func (userHandle) ConnectWebSocket(w http.ResponseWriter, r *http.Request) {
+func (userHandle) ConnectWebSocket(c *gin.Context) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil).WithAttrs(
 		[]slog.Attr{
 			{
@@ -70,23 +91,24 @@ func (userHandle) ConnectWebSocket(w http.ResponseWriter, r *http.Request) {
 	logger.Info("connecting websocket")
 	defer logger.Info("exiting websocket")
 
-	c, err := websocket.Accept(w, r, nil)
+	wsConn, err := websocket.Accept(c.Writer, c.Request, nil)
 	if err != nil {
-		logger.Error("failed to accept websocket: %v", err)
+		logger.Error("failed to accept websocket: %s", err)
 	}
-	defer c.Close(websocket.StatusInternalError, "closing connection")
+	defer wsConn.Close(websocket.StatusInternalError, "closing connection")
 
 	writeChan := make(chan []byte, 10)
 	readChan := make(chan []byte)
 	closeChan := make(chan struct{})
 
-	ctx, cancel := context.WithCancel(r.Context())
+	ctx, cancel := context.WithCancel(c)
+	defer cancel()
 
 	userService, err := chatroom.GetUserServicer(writeChan)
 	if err != nil {
 		logger.Error(err.Error())
 
-		if err := c.Write(ctx, websocket.MessageText, []byte(`{"err":"failed to add user to chatroom"}`)); err != nil {
+		if err := wsConn.Write(ctx, websocket.MessageText, []byte(`{"err":"failed to add user to chatroom"}`)); err != nil {
 			logger.Error(err.Error())
 		}
 		return
@@ -94,7 +116,7 @@ func (userHandle) ConnectWebSocket(w http.ResponseWriter, r *http.Request) {
 	defer userService.RemoveUser()
 
 	user := userWebsocketHandle{
-		conn:        c,
+		conn:        wsConn,
 		readChan:    readChan,
 		writeChan:   writeChan,
 		closeChan:   closeChan,
@@ -125,7 +147,7 @@ func (userHandle) ConnectWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// @todo error handling adn graceful exit
+	// @todo error handling and graceful exit
 
 	wg.Wait()
 }
