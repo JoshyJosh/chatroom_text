@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"chatroom_text/middleware"
 	"chatroom_text/models"
 	"chatroom_text/services"
 	"chatroom_text/services/chatroom"
@@ -55,15 +56,16 @@ func (userHandle) EnterChat(c *gin.Context) {
 }
 
 func hasActiveSession(ctx context.Context, logger *slog.Logger) {
-	logger.Info("testing 123 testing")
+	logger.Info("checking session")
+	defer logger.Info("session checked")
 	configuration := kratosClient.NewConfiguration()
 	configuration.Servers = []kratosClient.ServerConfiguration{
 		{
-			URL: "http://ory_proxy:4000/.ory", // Kratos Admin API
+			URL: "http://kratos:4434", // Kratos Admin API
 		},
 	}
-	kratosAPI := kratosClient.NewAPIClient(configuration)
-	resp, r, err := kratosAPI.FrontendApi.ToSession(context.Background()).Cookie("ory_Kratos_session").Execute()
+	kratosAPI := middleware.GetAuthClient(logger)
+	resp, r, err := kratosAPI.Client.FrontendAPI.ToSession(context.Background()).Cookie("ory_Kratos_session").Execute()
 	if err != nil {
 		panic(err)
 	}

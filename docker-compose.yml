@@ -8,8 +8,13 @@ services:
       - kratos
     networks:
       - app_network
+    environment:
+      - LOGIN_URL=http://127.0.0.1:4455
+      - KRATOS_URL=http://kratos:4433
     ports:
-      - "8080:8080"    
+      - "8080:8080"
+    expose:
+      - "8080"    
 
   postgres:
     image: postgres:16
@@ -53,6 +58,8 @@ services:
     image: oryd/kratos-selfservice-ui-node:v1.0.0
     ports:
       - "4455:4455"
+    expose:
+      - 4455
     environment:
       - PORT=4455
       - KRATOS_PUBLIC_URL=http://kratos:4433/
@@ -94,15 +101,6 @@ services:
       - '4437:4437'
     networks:
       - app_network
-
-  
-  # todo move this to nginx
-  ory_proxy:
-    image: oryd/ory:latest
-    ports:
-      - '4000:4000'
-    expose: 
-      - 4000 #default port
 
 volumes:
   postgresvol:
