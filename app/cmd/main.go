@@ -3,11 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
+	"time"
 
 	"chatroom_text/handlers"
 	"chatroom_text/middleware"
-
 	"chatroom_text/repo/db"
 
 	"github.com/gin-gonic/gin"
@@ -48,7 +50,12 @@ func main() {
 	router.GET("/", userHandler.EnterChat)
 	router.GET("/websocket/", userHandler.ConnectWebSocket)
 
-	if err := router.RunTLS(httpPort, "cert.pem", "key.pem"); err != nil {
-		slog.Error(fmt.Sprintf("%v", err))
+	srv := &http.Server{
+		Addr:         httpPort,
+		Handler:      router,
+		ReadTimeout:  time.Minute,
+		WriteTimeout: time.Minute,
 	}
+
+	log.Fatal(srv.ListenAndServe())
 }

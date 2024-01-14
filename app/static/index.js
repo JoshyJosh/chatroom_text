@@ -3,7 +3,7 @@ var chatInput = document.getElementById("chatInput");
 var chatButton = document.getElementById("chatButton");
 
 console.log("establishing websocket");
-WS = new WebSocket('wss://127.0.0.1:8080/websocket/');
+WS = new WebSocket('wss://127.0.0.1/websocket/');
 WS.onopen = (event) => {
     console.log("onopen event: ", event);
     WS.send('{"msg":"entered chat"}');

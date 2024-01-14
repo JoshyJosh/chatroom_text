@@ -4,7 +4,6 @@ import (
 	"chatroom_text/middleware"
 	"chatroom_text/models"
 	"chatroom_text/services"
-	"chatroom_text/services/chatroom"
 	"context"
 	"fmt"
 	"net/http"
@@ -36,9 +35,10 @@ func (userHandle) EnterChat(c *gin.Context) {
 		},
 	))
 
-	hasActiveSession(c, logger)
+	// hasActiveSession(c, logger)
 
-	if pusher, ok := c.Writer.(http.Pusher); ok {
+	if pusher := c.Writer.Pusher(); pusher != nil {
+		// use pusher.Push() to do server push
 		logger.Info("pushed http2")
 
 		options := &http.PushOptions{
@@ -106,23 +106,23 @@ func (userHandle) ConnectWebSocket(c *gin.Context) {
 	ctx, cancel := context.WithCancel(c)
 	defer cancel()
 
-	userService, err := chatroom.GetUserServicer(writeChan)
-	if err != nil {
-		logger.Error(err.Error())
+	// userService, err := chatroom.GetUserServicer(writeChan)
+	// if err != nil {
+	// 	logger.Error(err.Error())
 
-		if err := wsConn.Write(ctx, websocket.MessageText, []byte(`{"err":"failed to add user to chatroom"}`)); err != nil {
-			logger.Error(err.Error())
-		}
-		return
-	}
-	defer userService.RemoveUser()
+	// 	if err := wsConn.Write(ctx, websocket.MessageText, []byte(`{"err":"failed to add user to chatroom"}`)); err != nil {
+	// 		logger.Error(err.Error())
+	// 	}
+	// 	return
+	// }
+	// defer userService.RemoveUser()
 
 	user := userWebsocketHandle{
-		conn:        wsConn,
-		readChan:    readChan,
-		writeChan:   writeChan,
-		closeChan:   closeChan,
-		userService: userService,
+		conn:      wsConn,
+		readChan:  readChan,
+		writeChan: writeChan,
+		closeChan: closeChan,
+		// userService: userService,
 	}
 
 	var wg sync.WaitGroup
@@ -140,14 +140,14 @@ func (userHandle) ConnectWebSocket(c *gin.Context) {
 		}
 	}()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := userService.EnterChatroom()
-		if err != nil {
-			cancel()
-		}
-	}()
+	// wg.Add(1)
+	// go func() {
+	// 	defer wg.Done()
+	// 	err := userService.EnterChatroom()
+	// 	if err != nil {
+	// 		cancel()
+	// 	}
+	// }()
 
 	// @todo error handling and graceful exit
 
@@ -192,6 +192,6 @@ func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
 
 		slog.Info(fmt.Sprintf("received message: %s", msg.Text))
 
-		u.userService.ReadMessage(msg)
+		// u.userService.ReadMessage(msg)
 	}
 }
