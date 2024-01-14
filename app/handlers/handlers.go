@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -160,6 +161,11 @@ func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
 			slog.Info(fmt.Sprintf("got error status: %s", websocket.CloseStatus(err).String()))
 			if websocket.CloseStatus(err) == websocket.StatusAbnormalClosure ||
 				websocket.CloseStatus(err) == websocket.StatusGoingAway {
+				return err
+			}
+
+			if strings.Contains(err.Error(), "WebSocket closed") {
+				slog.Error(fmt.Sprintf("Got generic close status for websocket closed, error: %s", err))
 				return err
 			}
 
