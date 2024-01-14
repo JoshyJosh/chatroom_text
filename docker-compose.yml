@@ -3,18 +3,14 @@ version: "3.8"
 services:
   chatroom:
     build: .
-    # depends_on:
-    #   - postgres
-    #   - kratos
+    depends_on:
+      - postgres
+      - kratos
     networks:
       - app_network
     environment:
       - LOGIN_URL=https://127.0.0.1:4455
       - KRATOS_URL=http://kratos:4433
-    # ports:
-    #   - "8080:8080"
-    # expose:
-    #   - "8080"    
 
   postgres:
     image: postgres:16
@@ -56,14 +52,10 @@ services:
 
   kratos-selfservice-ui-node:
     image: oryd/kratos-selfservice-ui-node:v1.0.0
-    ports:
-      - "4455:4455"
-    expose:
-      - 4455
     environment:
       - PORT=4455
       - KRATOS_PUBLIC_URL=http://kratos:4433/
-      - KRATOS_BROWSER_URL=http://127.0.0.1:4433/
+      - KRATOS_BROWSER_URL=https://127.0.0.1:4433/
     networks:
       - app_network
     restart: on-failure
@@ -72,12 +64,9 @@ services:
     depends_on:
       - kratos-migrate
     image: oryd/kratos:v1.0.0
-    ports:
-      - '4433:4433' # public
-      - '4434:4434' # admin
-    expose:
-      - 4433
-      - 4434
+    # ports:
+    #   - '4433:4433' # public
+    #   - '4434:4434' # admin
     restart: unless-stopped
     environment:
       - DSN=sqlite:///var/lib/sqlite/db.sqlite?_fk=true
@@ -107,6 +96,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "4433:4433"
+      - "4455:4455"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./certs/:/etc/nginx/certs/

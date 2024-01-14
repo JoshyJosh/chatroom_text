@@ -39,7 +39,7 @@ func newAuthMiddleware(logger *slog.Logger) *kratosMiddleware {
 
 func (k *kratosMiddleware) SessionMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		session, err := k.validateSession(c.Request)
+		session, err := k.validateSession(c, c.Request)
 		loginURL := os.Getenv("LOGIN_URL")
 		if err != nil {
 			fmt.Println("this does not work")
@@ -51,14 +51,14 @@ func (k *kratosMiddleware) SessionMiddleware() gin.HandlerFunc {
 
 		fmt.Println("got session!!!!")
 		if !*session.Active {
-			c.Redirect(http.StatusMovedPermanently, "http://127.0.0.1:8080/ping")
+			c.Redirect(http.StatusMovedPermanently, "https://127.0.0.1/")
 			return
 		}
 		c.Next()
 	}
 }
 
-func (k *kratosMiddleware) validateSession(r *http.Request) (*ory.Session, error) {
+func (k *kratosMiddleware) validateSession(ctx context.Context, r *http.Request) (*ory.Session, error) {
 	cookie, err := r.Cookie("ory_kratos_session")
 	if err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func (k *kratosMiddleware) validateSession(r *http.Request) (*ory.Session, error
 		return nil, errors.New("no session found in cookie")
 	}
 
-	resp, _, err := k.Client.FrontendAPI.ToSession(context.Background()).Cookie(cookie.String()).Execute()
+	resp, _, err := k.Client.FrontendAPI.ToSession(ctx).Cookie(cookie.String()).Execute()
 	if err != nil {
 		return nil, err
 	}

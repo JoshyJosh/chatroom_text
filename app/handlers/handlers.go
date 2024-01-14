@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"chatroom_text/middleware"
 	"chatroom_text/models"
 	"chatroom_text/services"
 	"context"
@@ -12,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	kratosClient "github.com/ory/kratos-client-go"
 	"golang.org/x/exp/slog"
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
@@ -35,8 +33,6 @@ func (userHandle) EnterChat(c *gin.Context) {
 		},
 	))
 
-	// hasActiveSession(c, logger)
-
 	if pusher := c.Writer.Pusher(); pusher != nil {
 		// use pusher.Push() to do server push
 		logger.Info("pushed http2")
@@ -53,24 +49,6 @@ func (userHandle) EnterChat(c *gin.Context) {
 	}
 
 	http.ServeFile(c.Writer, c.Request, "static/index.html")
-}
-
-func hasActiveSession(ctx context.Context, logger *slog.Logger) {
-	logger.Info("checking session")
-	defer logger.Info("session checked")
-	configuration := kratosClient.NewConfiguration()
-	configuration.Servers = []kratosClient.ServerConfiguration{
-		{
-			URL: "http://kratos:4434", // Kratos Admin API
-		},
-	}
-	kratosAPI := middleware.GetAuthClient(logger)
-	resp, r, err := kratosAPI.Client.FrontendAPI.ToSession(context.Background()).Cookie("ory_Kratos_session").Execute()
-	if err != nil {
-		panic(err)
-	}
-
-	logger.Info(fmt.Sprintf("resp: %#v\n r: %#v\n", resp, r))
 }
 
 type userWebsocketHandle struct {
