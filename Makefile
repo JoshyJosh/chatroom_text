@@ -7,7 +7,7 @@ test:
 	go test ./...
 
 up:
-	docker-compose up -d
+	docker compose up -d
 
 down:
-	docker-compose down
+	docker compose down

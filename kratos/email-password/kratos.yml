@@ -12,7 +12,6 @@ serve:
 
 selfservice:
   default_browser_return_url: https://127.0.0.1:4455/
-  # default_browser_return_url: https://127.0.0.1:8080/ping
   allowed_return_urls:
     - https://127.0.0.1:4455
     - https://127.0.0.1:8080
