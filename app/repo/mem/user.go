@@ -22,13 +22,13 @@ func GetUserRepoer() repo.UserRepoer {
 	return userRoster
 }
 
-func (u userWSRoster) AddUser(user models.User) string {
+func (u userWSRoster) AddUser(user models.User) uuid.UUID {
 	slog.Info("adding user to roster")
-	user.ID = uuid.New().String()
+	user.ID = uuid.New()
 
 	for {
 		if _, exists := u.userIDMap.LoadOrStore(user.ID, user); exists {
-			user.ID = uuid.New().String()
+			user.ID = uuid.New()
 			continue
 		}
 
@@ -39,6 +39,6 @@ func (u userWSRoster) AddUser(user models.User) string {
 	return user.ID
 }
 
-func (u userWSRoster) RemoveID(id string) {
+func (u userWSRoster) RemoveID(id uuid.UUID) {
 	u.userIDMap.Delete(id)
 }

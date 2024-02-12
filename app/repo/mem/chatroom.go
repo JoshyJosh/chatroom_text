@@ -9,6 +9,7 @@ import (
 	"chatroom_text/models"
 	"chatroom_text/repo"
 
+	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
 )
 
@@ -27,7 +28,7 @@ func GetChatroomRepoer() repo.ChatroomRepoer {
 }
 
 func (c chatroomRoster) AddUser(user models.User) error {
-	if user.ID == "" {
+	if user.ID == [16]byte{} {
 		return errors.New("tried to add user with empty ID")
 	}
 
@@ -38,20 +39,20 @@ func (c chatroomRoster) AddUser(user models.User) error {
 	return nil
 }
 
-func (c chatroomRoster) RemoveUser(id string) {
+func (c chatroomRoster) RemoveUser(id uuid.UUID) {
 	c.userMap.Delete(id)
 }
 
 func (c *chatroomRoster) ReceiveMessage(msg models.WSMessage) {
 	// @todo add message to chatroom message history
 	slog.Info(fmt.Sprintf("received message: %s", msg.Text))
-	msgRaw, err := json.Marshal(msg)
+	_, err := json.Marshal(msg)
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to unmarshal received message: %v", msg))
 		return
 	}
 
-	c.DistributeMessage(msgRaw)
+	// c.DistributeMessage(msgRaw)
 }
 
 func (c *chatroomRoster) DistributeMessage(msgRaw []byte) {

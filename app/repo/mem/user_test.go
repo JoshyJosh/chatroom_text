@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -53,7 +54,7 @@ func TestUserWSRosterRemoveUser(t *testing.T) {
 	assert.Equal(1, mapLen, "expected two entries in userIDMap")
 
 	// Check that remove of non-existing user does not panic and move other users.
-	testUserWSRoster.RemoveID("testing123")
+	testUserWSRoster.RemoveID(uuid.UUID{})
 
 	mapLen = 0
 	testUserWSRoster.userIDMap.Range(func(_, _ any) bool {

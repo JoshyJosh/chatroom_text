@@ -29,7 +29,7 @@ func TestChatroomRosterAddUser(t *testing.T) {
 	expectedErr := errors.New("tried to add user with empty ID")
 	assert.Equal(expectedErr, err, "unexpected error for missing ID")
 
-	user1.ID = uuid.New().String()
+	user1.ID = uuid.New()
 	err = testChatroomRoster.AddUser(user1)
 	assert.Nil(err, "unexpected error when adding user")
 
@@ -60,12 +60,12 @@ func TestChatroomRosterUserDistribution(t *testing.T) {
 	}
 
 	user1 := models.User{
-		ID:        uuid.New().String(),
+		ID:        uuid.New(),
 		WriteChan: make(chan []byte, 10),
 	}
 
 	user2 := models.User{
-		ID:        uuid.New().String(),
+		ID:        uuid.New(),
 		WriteChan: make(chan []byte, 10),
 	}
 
@@ -86,7 +86,7 @@ func TestChatroomRosterUserDistribution(t *testing.T) {
 	msg := models.WSMessage{
 		Text:      "test message",
 		Timestamp: curTime,
-		ClientID:  user1.ID,
+		ClientID:  user1.ID.String(),
 	}
 
 	msgRaw, err := json.Marshal(msg)

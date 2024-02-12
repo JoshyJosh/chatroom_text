@@ -1,7 +1,6 @@
 package models
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,15 +13,15 @@ type WSMessage struct {
 }
 
 type User struct {
-	ID        string
+	ID        uuid.UUID
 	WriteChan chan []byte
 }
 
 type ChatroomLog struct {
-	ChatroomID sql.NullString `db:"chatroom_id"`
-	Timestamp  time.Time      `db:"log_timestamp"`
-	Text       string         `db:"log_text"`
-	ClientID   sql.NullString `db:"client_id"`
+	ChatroomID uuid.UUID `bson:"chatroom_id"`
+	Timestamp  time.Time `bson:"timestamp"`
+	Text       string    `bson:"text"`
+	ClientID   uuid.UUID `bson:"client_id"`
 }
 
 type GetDBMessagesParams struct {
@@ -33,7 +32,7 @@ type GetDBMessagesParams struct {
 type SetDBMessagesParams struct {
 	ChatroomID uuid.UUID
 	Timestamp  time.Time
-	ClientID   string
+	ClientID   uuid.UUID
 	Text       string
 }
 

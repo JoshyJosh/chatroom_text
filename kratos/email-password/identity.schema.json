@@ -11,8 +11,6 @@
           "type": "string",
           "format": "email",
           "title": "E-Mail",
-          "name": "something",
-          "label": "woahm8",
           "minLength": 3,
           "ory.sh/kratos": {
             "credentials": {

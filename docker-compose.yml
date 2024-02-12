@@ -4,7 +4,7 @@ services:
   chatroom:
     build: .
     depends_on:
-      - postgres
+      - mongodb
       - kratos
     networks:
       - app_network
@@ -12,26 +12,12 @@ services:
       - LOGIN_URL=https://127.0.0.1:4455/login
       - KRATOS_URL=http://kratos:4433
 
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: pguser
-      POSTGRES_PASSWORD: pgpass
-      POSTGRES_DB: chatroom
-    volumes:
-      - "./schema.sql:/docker-entrypoint-initdb.d/schema.sql"
-      - "postgresvol:/var/lib/postgresql/data"
+  mongodb:
+    image: mongo:jammy
     ports:
-      - "5432:5432"
-    expose: 
-      - 5432
+      - "27017:27017"
     networks:
       - app_network
-    healthcheck:
-      test: ['CMD', 'pg_isready', '-U', 'pguser', '-d', 'supertokens']
-      interval: 5s
-      timeout: 5s
-      retries: 5
   
   kratos-migrate:
     image: oryd/kratos:v1.0.0

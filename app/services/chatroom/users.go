@@ -3,10 +3,11 @@ package chatroom
 import (
 	"chatroom_text/models"
 	"chatroom_text/repo"
-	chatroomLogger "chatroom_text/repo/db"
 	chatroomRepo "chatroom_text/repo/mem"
+	chatroomLogger "chatroom_text/repo/nosql"
 	services "chatroom_text/services"
-	"encoding/json"
+	"context"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -17,14 +18,19 @@ type User struct {
 	user           models.User
 	userRepo       repo.UserRepoer
 	chatroomRepo   repo.ChatroomRepoer
-	chatroomLogger repo.ChatroomLogger
+	chatroomLogger repo.ChatroomLogRepoer
 }
 
-func GetUserServicer(writeChan chan []byte) (services.UserServicer, error) {
+func GetUserServicer(ctx context.Context, writeChan chan []byte) (services.UserServicer, error) {
+	chatroomLogger, err := chatroomLogger.GetChatroomLogRepoer(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get logger for user servicer")
+	}
+
 	userService := User{
 		userRepo:       chatroomRepo.GetUserRepoer(),
 		chatroomRepo:   chatroomRepo.GetChatroomRepoer(),
-		chatroomLogger: chatroomLogger.GetChatroomLogger(),
+		chatroomLogger: chatroomLogger,
 	}
 
 	userService.user = models.User{
@@ -36,44 +42,46 @@ func GetUserServicer(writeChan chan []byte) (services.UserServicer, error) {
 	return userService, nil
 }
 
-func (u User) EnterChatroom() error {
+func (u User) EnterChatroom(ctx context.Context) error {
 	if err := u.chatroomRepo.AddUser(u.user); err != nil {
 		return err
 	}
 
-	logs, err := u.chatroomLogger.GetChatroomLogs(models.GetDBMessagesParams{
+	logs, err := u.chatroomLogger.GetChatroomLogs(ctx, models.GetDBMessagesParams{
 		ChatroomID: models.MainChatUUID,
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to get chatroom logs")
 	}
 
-	for _, l := range logs {
-		msg := models.WSMessage{
-			Text:      l.Text,
-			Timestamp: l.Timestamp,
-			ClientID:  l.ClientID.String,
-		}
+	fmt.Println(logs)
 
-		msgRaw, err := json.Marshal(msg)
-		if err != nil {
-			return errors.Wrap(err, "failed to unmarshal chatroom logs")
-		}
+	// for _, l := range logs {
+	// 	msg := models.WSMessage{
+	// 		Text:      l.Text,
+	// 		Timestamp: l.Timestamp,
+	// 		ClientID:  l.ClientID.String(),
+	// 	}
 
-		u.WriteMessage(msgRaw)
-	}
+	// 	msgRaw, err := json.Marshal(msg)
+	// 	if err != nil {
+	// 		return errors.Wrap(err, "failed to unmarshal chatroom logs")
+	// 	}
+
+	// 	u.WriteMessage(msgRaw)
+	// }
 
 	return nil
 }
 
-func (u User) ReadMessage(msg models.WSMessage) {
+func (u User) ReadMessage(ctx context.Context, msg models.WSMessage) {
 	msg.Timestamp = time.Now()
-	msg.ClientID = u.user.ID
+	msg.ClientID = u.user.ID.String()
 
-	err := u.chatroomLogger.SetChatroomLogs(models.SetDBMessagesParams{
+	err := u.chatroomLogger.SetChatroomLogs(ctx, models.SetDBMessagesParams{
 		ChatroomID: models.MainChatUUID,
 		Timestamp:  msg.Timestamp,
-		ClientID:   msg.ClientID,
+		ClientID:   u.user.ID,
 		Text:       msg.Text,
 	})
 	if err != nil {

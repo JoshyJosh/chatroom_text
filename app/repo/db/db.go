@@ -3,6 +3,7 @@ package db
 import (
 	"chatroom_text/models"
 	"chatroom_text/repo"
+	"context"
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
@@ -35,11 +36,11 @@ func InitDB() error {
 	return nil
 }
 
-func GetChatroomLogger() repo.ChatroomLogger {
+func GetChatroomLogger() repo.ChatroomLogRepoer {
 	return chatroomDB{}
 }
 
-func (c chatroomDB) GetChatroomLogs(params models.GetDBMessagesParams) ([]models.ChatroomLog, error) {
+func (c chatroomDB) GetChatroomLogs(ctx context.Context, params models.GetDBMessagesParams) ([]models.ChatroomLog, error) {
 	// @todo add message to chatroom message history
 	logs := []models.ChatroomLog{}
 
@@ -65,7 +66,7 @@ func (c chatroomDB) GetChatroomLogs(params models.GetDBMessagesParams) ([]models
 }
 
 // @todo standardize timestamp
-func (c chatroomDB) SetChatroomLogs(params models.SetDBMessagesParams) error {
+func (c chatroomDB) SetChatroomLogs(ctx context.Context, params models.SetDBMessagesParams) error {
 	slog.Info(fmt.Sprintf("setting log: %v", params))
 	// @todo add inserts from params
 	query := fmt.Sprintf(`

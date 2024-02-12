@@ -10,17 +10,10 @@ import (
 
 	"chatroom_text/handlers"
 	"chatroom_text/middleware"
-	"chatroom_text/repo/db"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/exp/slog"
 )
-
-func init() {
-	if err := db.InitDB(); err != nil {
-		panic(err)
-	}
-}
 
 func main() {
 	portFlag := flag.Int("port", 8080, "Listen address")
