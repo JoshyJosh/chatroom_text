@@ -27,10 +27,14 @@ WS.onclose = (event) => {
 };
 
 function sendMessage(event) {
-    if (event.inputType === "insertLineBreak") {
+    if (event.inputType === "insertLineBreak" || event.type === "click") {
         let msgText = chatInput.value;
         WS.send(`{"msg":"${msgText}"}`);
         chatInput.value = "";
+
+        if (event.type === "click") {
+            chatInput.focus();
+        }
     }
 };
 
@@ -38,8 +42,8 @@ chatInput.addEventListener ("beforeinput",function(event) {
     sendMessage(event);
 });
 
-chatInput.focus();
-
 chatButton.addEventListener ("click",function(event) {
     sendMessage(event);
 });
+
+chatInput.focus();
