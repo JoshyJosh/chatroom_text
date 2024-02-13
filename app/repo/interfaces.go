@@ -26,6 +26,6 @@ type UserRepoer interface {
 }
 
 type ChatroomLogRepoer interface {
-	GetChatroomLogs(ctx context.Context, params models.GetDBMessagesParams) ([]models.ChatroomLog, error)
-	SetChatroomLogs(ctx context.Context, params models.SetDBMessagesParams) error
+	SelectChatroomLogs(ctx context.Context, params models.GetDBMessagesParams) ([]models.ChatroomLog, error)
+	InsertChatroomLogs(ctx context.Context, params models.SetDBMessagesParams) error
 }

@@ -46,13 +46,13 @@ func (c chatroomRoster) RemoveUser(id uuid.UUID) {
 func (c *chatroomRoster) ReceiveMessage(msg models.WSMessage) {
 	// @todo add message to chatroom message history
 	slog.Info(fmt.Sprintf("received message: %s", msg.Text))
-	_, err := json.Marshal(msg)
+	msgRaw, err := json.Marshal(msg)
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to unmarshal received message: %v", msg))
 		return
 	}
 
-	// c.DistributeMessage(msgRaw)
+	c.DistributeMessage(msgRaw)
 }
 
 func (c *chatroomRoster) DistributeMessage(msgRaw []byte) {

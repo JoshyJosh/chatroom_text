@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -34,11 +35,11 @@ func GetChatroomLogRepoer(ctx context.Context) (repo.ChatroomLogRepoer, error) {
 	}, nil
 }
 
-func (m MongoRepo) GetChatroomLogs(ctx context.Context, params models.GetDBMessagesParams) ([]models.ChatroomLog, error) {
+func (m MongoRepo) SelectChatroomLogs(ctx context.Context, params models.GetDBMessagesParams) ([]models.ChatroomLog, error) {
 	collection := m.client.Database(database, nil).Collection("chat_logs")
 
-	opts := options.Find().SetSort(bson.D{{"timestamp", -1}})
-	cursor, err := collection.Find(ctx, bson.D{{"chatroom_id", params.ChatroomID.String()}}, opts)
+	opts := options.Find().SetSort(bson.D{{Key: "timestamp", Value: -1}})
+	cursor, err := collection.Find(ctx, bson.D{{Key: "chatroom_id", Value: params.ChatroomID.String()}}, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find chatroom logs")
 	}
@@ -49,22 +50,19 @@ func (m MongoRepo) GetChatroomLogs(ctx context.Context, params models.GetDBMessa
 	}
 
 	return results, nil
-
-	// chatroomLogs := []models.ChatroomLog{}
-	// for _, result := range results {
-	// 	var chatroomLog models.ChatroomLog
-	// 	bson.Unmarshal(result, &chatroomLog)
-	// }
 }
 
-func (m MongoRepo) SetChatroomLogs(ctx context.Context, params models.SetDBMessagesParams) error {
+func (m MongoRepo) InsertChatroomLogs(ctx context.Context, params models.SetDBMessagesParams) error {
 	collection := m.client.Database(database, nil).Collection("chat_logs")
 
-	collection.InsertOne(ctx, models.ChatroomLog{
-		ChatroomID: params.ChatroomID,
-		ClientID:   params.ClientID,
+	if _, err := collection.InsertOne(ctx, models.ChatroomLogMongo{
+		ChatroomID: primitive.Binary{Subtype: 0x04, Data: []byte(params.ChatroomID[:])},
+		ClientID:   primitive.Binary{Subtype: 0x04, Data: []byte(params.ClientID[:])},
 		Text:       params.Text,
 		Timestamp:  params.Timestamp,
-	})
-	return errors.New("not yet implemented")
+	}); err != nil {
+		return errors.Wrap(err, "failed to insert chatroom message")
+	}
+
+	return nil
 }

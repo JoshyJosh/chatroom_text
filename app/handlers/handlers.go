@@ -129,8 +129,6 @@ func (userHandle) ConnectWebSocket(c *gin.Context) {
 		}
 	}()
 
-	// @todo error handling and graceful exit
-
 	wg.Wait()
 }
 
@@ -163,6 +161,12 @@ func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
 			if websocket.CloseStatus(err) == websocket.StatusAbnormalClosure ||
 				websocket.CloseStatus(err) == websocket.StatusGoingAway {
 				return err
+			}
+
+			// Error code -1 is a non-close status.
+			if websocket.CloseStatus(err) == -1 {
+				slog.Info("unknown error: ", err.Error())
+				continue
 			}
 
 			if strings.Contains(err.Error(), "WebSocket closed") {

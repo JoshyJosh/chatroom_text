@@ -7,7 +7,7 @@ import (
 	chatroomLogger "chatroom_text/repo/nosql"
 	services "chatroom_text/services"
 	"context"
-	"fmt"
+	"encoding/json"
 	"time"
 
 	"github.com/pkg/errors"
@@ -47,29 +47,27 @@ func (u User) EnterChatroom(ctx context.Context) error {
 		return err
 	}
 
-	logs, err := u.chatroomLogger.GetChatroomLogs(ctx, models.GetDBMessagesParams{
+	logs, err := u.chatroomLogger.SelectChatroomLogs(ctx, models.GetDBMessagesParams{
 		ChatroomID: models.MainChatUUID,
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to get chatroom logs")
 	}
 
-	fmt.Println(logs)
+	for _, l := range logs {
+		msg := models.WSMessage{
+			Text:      l.Text,
+			Timestamp: l.Timestamp,
+			ClientID:  l.ClientID.String(),
+		}
 
-	// for _, l := range logs {
-	// 	msg := models.WSMessage{
-	// 		Text:      l.Text,
-	// 		Timestamp: l.Timestamp,
-	// 		ClientID:  l.ClientID.String(),
-	// 	}
+		msgRaw, err := json.Marshal(msg)
+		if err != nil {
+			return errors.Wrap(err, "failed to unmarshal chatroom logs")
+		}
 
-	// 	msgRaw, err := json.Marshal(msg)
-	// 	if err != nil {
-	// 		return errors.Wrap(err, "failed to unmarshal chatroom logs")
-	// 	}
-
-	// 	u.WriteMessage(msgRaw)
-	// }
+		u.WriteMessage(msgRaw)
+	}
 
 	return nil
 }
@@ -78,16 +76,17 @@ func (u User) ReadMessage(ctx context.Context, msg models.WSMessage) {
 	msg.Timestamp = time.Now()
 	msg.ClientID = u.user.ID.String()
 
-	err := u.chatroomLogger.SetChatroomLogs(ctx, models.SetDBMessagesParams{
+	err := u.chatroomLogger.InsertChatroomLogs(ctx, models.SetDBMessagesParams{
 		ChatroomID: models.MainChatUUID,
 		Timestamp:  msg.Timestamp,
 		ClientID:   u.user.ID,
 		Text:       msg.Text,
 	})
 	if err != nil {
-		// @todo return error response
-		slog.Error(err.Error())
+		// @todo propagate error message to websocket
+		slog.Error("failed to insert chatroom log", err.Error())
 	}
+
 	u.chatroomRepo.ReceiveMessage(msg)
 }
 

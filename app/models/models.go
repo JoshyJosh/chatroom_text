@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type WSMessage struct {
@@ -18,10 +19,17 @@ type User struct {
 }
 
 type ChatroomLog struct {
-	ChatroomID uuid.UUID `bson:"chatroom_id"`
-	Timestamp  time.Time `bson:"timestamp"`
-	Text       string    `bson:"text"`
-	ClientID   uuid.UUID `bson:"client_id"`
+	ChatroomID uuid.UUID
+	Timestamp  time.Time
+	Text       string
+	ClientID   uuid.UUID
+}
+
+type ChatroomLogMongo struct {
+	ChatroomID primitive.Binary `bson:"chatroom_id"`
+	Timestamp  time.Time        `bson:"timestamp"`
+	Text       string           `bson:"text"`
+	ClientID   primitive.Binary `bson:"client_id"`
 }
 
 type GetDBMessagesParams struct {
