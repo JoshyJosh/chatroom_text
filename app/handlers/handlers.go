@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	"golang.org/x/exp/slog"
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
@@ -123,6 +124,15 @@ func (userHandle) ConnectWebSocket(c *gin.Context) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		if err := user.Healthcheck(ctx); err != nil {
+			logger.Error("failed to get pong from healthcheck", err)
+			cancel()
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 		if err := userService.EnterChatroom(ctx); err != nil {
 			logger.Error("failed to enter chatroom", err)
 			cancel()
@@ -182,5 +192,18 @@ func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
 		slog.Info(fmt.Sprintf("received message: %s", msg.Text))
 
 		u.userService.ReadMessage(ctx, msg)
+	}
+}
+
+// Healthcheck is used to still keep an idle websocket connnection live.
+func (u userWebsocketHandle) Healthcheck(ctx context.Context) error {
+	// Websocket timeout is usually 1 minute, however this should leave a 5 second tolerance.
+	ticker := time.NewTicker(time.Minute - 5*time.Second)
+	defer ticker.Stop()
+	for {
+		<-ticker.C
+		if err := u.conn.Ping(ctx); err != nil {
+			return errors.Wrap(err, "failed to ping client")
+		}
 	}
 }
