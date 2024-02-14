@@ -19,6 +19,13 @@ import (
 	"nhooyr.io/websocket/wsjson"
 )
 
+// Connmap is used to limit one connection per user.
+var wsConnMap sync.Map
+
+func init() {
+	wsConnMap = sync.Map{}
+}
+
 type userHandle struct{}
 
 func GetUserHandle() userHandle {
@@ -73,20 +80,34 @@ func (userHandle) ConnectWebSocket(c *gin.Context) {
 	logger.Info("connecting websocket")
 	defer logger.Info("exiting websocket")
 
-	// @todo check if the websocket is from the same client in order to mitigate DDOS.
-	// in order to check this propely store a connection map with ory_kratos_session cookie as key and conn as value.
+	cookie, err := c.Request.Cookie("ory_kratos_session")
+	if err != nil {
+		return
+	}
+
+	if _, ok := wsConnMap.Load(cookie.Value); ok {
+		return
+	}
+
 	wsConn, err := websocket.Accept(c.Writer, c.Request, nil)
 	if err != nil {
 		logger.Error("failed to accept websocket: %s", err)
 	}
 	defer wsConn.Close(websocket.StatusInternalError, "closing connection")
 
+	ctx, cancel := context.WithCancel(c)
+	defer cancel()
+
+	wsConnMap.Store(cookie.Value, struct{}{})
+	defer func() {
+		slog.Debug("deleting wsConnMap entry")
+		wsConnMap.Delete(cookie.Value)
+		slog.Debug("deleted wsConnMap entry")
+	}()
+
 	writeChan := make(chan []byte, 10)
 	readChan := make(chan []byte)
 	closeChan := make(chan struct{})
-
-	ctx, cancel := context.WithCancel(c)
-	defer cancel()
 
 	userService, err := chatroom.GetUserServicer(ctx, writeChan)
 	if err != nil {
@@ -203,9 +224,13 @@ func (u userWebsocketHandle) Healthcheck(ctx context.Context) error {
 	ticker := time.NewTicker(time.Minute - 5*time.Second)
 	defer ticker.Stop()
 	for {
-		<-ticker.C
-		if err := u.conn.Ping(ctx); err != nil {
-			return errors.Wrap(err, "failed to ping client")
+		select {
+		case <-ticker.C:
+			if err := u.conn.Ping(ctx); err != nil {
+				return errors.Wrap(err, "failed to ping client")
+			}
+		case <-ctx.Done():
+			return nil
 		}
 	}
 }
