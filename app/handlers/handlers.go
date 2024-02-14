@@ -73,6 +73,8 @@ func (userHandle) ConnectWebSocket(c *gin.Context) {
 	logger.Info("connecting websocket")
 	defer logger.Info("exiting websocket")
 
+	// @todo check if the websocket is from the same client in order to mitigate DDOS.
+	// in order to check this propely store a connection map with ory_kratos_session cookie as key and conn as value.
 	wsConn, err := websocket.Accept(c.Writer, c.Request, nil)
 	if err != nil {
 		logger.Error("failed to accept websocket: %s", err)
@@ -175,7 +177,7 @@ func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
 
 			// Error code -1 is a non-close status.
 			if websocket.CloseStatus(err) == -1 {
-				slog.Info("unknown error: ", err.Error())
+				slog.Debug("unknown error: ", err.Error())
 				continue
 			}
 
@@ -185,7 +187,7 @@ func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
 			}
 
 			slog.Error("Failed to read json: %v", err)
-			// @todo consider retry
+
 			continue
 		}
 

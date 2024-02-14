@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 
@@ -27,7 +26,6 @@ func newAuthMiddleware(logger *slog.Logger) *kratosMiddleware {
 	configuration := ory.NewConfiguration()
 	configuration.Servers = []ory.ServerConfiguration{
 		{
-			// URL: "http://kratos:4434", // Kratos Admin API
 			URL: kratosURL, // Kratos Admin API
 		},
 	}
@@ -42,15 +40,13 @@ func (k *kratosMiddleware) SessionMiddleware() gin.HandlerFunc {
 		session, err := k.validateSession(c, c.Request)
 		loginURL := os.Getenv("LOGIN_URL")
 		if err != nil {
-			fmt.Println("this does not work")
-			fmt.Printf("%s\n", err)
-			// c.Redirect(http.StatusTemporaryRedirect, "http://127.0.0.1:4455/login")
+			slog.Info("Redirecting to login")
 			c.Redirect(http.StatusTemporaryRedirect, loginURL)
 			return
 		}
 
-		fmt.Println("got session!!!!")
 		if !*session.Active {
+			slog.Info("inactive session, redirecting back to chatroom")
 			c.Redirect(http.StatusMovedPermanently, "https://127.0.0.1/")
 			return
 		}

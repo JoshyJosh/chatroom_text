@@ -6,6 +6,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -38,14 +39,34 @@ func GetChatroomLogRepoer(ctx context.Context) (repo.ChatroomLogRepoer, error) {
 func (m MongoRepo) SelectChatroomLogs(ctx context.Context, params models.GetDBMessagesParams) ([]models.ChatroomLog, error) {
 	collection := m.client.Database(database, nil).Collection("chat_logs")
 
+	filter := bson.D{{
+		Key:   "chatroom_id",
+		Value: primitive.Binary{Subtype: 0x04, Data: []byte(params.ChatroomID[:])},
+	}}
 	opts := options.Find().SetSort(bson.D{{Key: "timestamp", Value: -1}})
-	cursor, err := collection.Find(ctx, bson.D{{Key: "chatroom_id", Value: params.ChatroomID.String()}}, opts)
+	cursor, err := collection.Find(ctx, filter, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find chatroom logs")
 	}
 
 	var results []models.ChatroomLog
-	if err = cursor.All(ctx, &results); err != nil {
+	for cursor.Next(ctx) {
+		var resultsBson models.ChatroomLogMongo
+		if err := cursor.Decode(&resultsBson); err != nil {
+			return nil, errors.Wrap(err, "failed to decode chatroom logs")
+		}
+
+		res := models.ChatroomLog{
+			ChatroomID: uuid.UUID(resultsBson.ChatroomID.Data[:]),
+			ClientID:   uuid.UUID(resultsBson.ClientID.Data[:]),
+			Timestamp:  resultsBson.Timestamp,
+			Text:       resultsBson.Text,
+		}
+
+		results = append(results, res)
+	}
+
+	if err := cursor.Err(); err != nil {
 		return nil, errors.Wrap(err, "failed to read logs from cursor")
 	}
 
