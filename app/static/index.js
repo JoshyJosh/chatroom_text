@@ -8,9 +8,11 @@ WS.onopen = (event) => {
     console.log("onopen event: ", event);
     WS.send('{"msg":"entered chat"}');
 };
+
 WS.onerror = (event) => {
     console.log("onerror event: ", event);
 };
+
 WS.onmessage = (event) => {
     console.log("onmessage event: ", event);
     msgData = JSON.parse(event.data);
