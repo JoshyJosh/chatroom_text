@@ -73,7 +73,7 @@ func (u User) EnterChatroom(ctx context.Context) error {
 }
 
 func (u User) ReadMessage(ctx context.Context, msg models.WSMessage) {
-	msg.Timestamp = time.Now()
+	msg.Timestamp = models.StandardizeTime(time.Now())
 	msg.ClientID = u.user.ID.String()
 
 	err := u.chatroomLogger.InsertChatroomLogs(ctx, models.SetDBMessagesParams{
