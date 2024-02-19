@@ -50,3 +50,29 @@ var MainChatUUID uuid.UUID = uuid.MustParse("00000000-0000-0000-0000-00000000000
 func StandardizeTime(t time.Time) time.Time {
 	return t.Round(time.Millisecond)
 }
+
+func (clm ChatroomLogMongo) ConvertToChatroomLog() ChatroomLog {
+	return ChatroomLog{
+		ChatroomID: MongoUUIDToGoUUID(clm.ChatroomID),
+		UserID:     MongoUUIDToGoUUID(clm.UserID),
+		Timestamp:  clm.Timestamp,
+		Text:       clm.Text,
+	}
+}
+
+func (params InsertDBMessagesParams) ConvertToChatroomLogMongo() ChatroomLogMongo {
+	return ChatroomLogMongo{
+		ChatroomID: primitive.Binary{Subtype: 0x04, Data: []byte(params.ChatroomID[:])},
+		UserID:     primitive.Binary{Subtype: 0x04, Data: []byte(params.UserID[:])},
+		Text:       params.Text,
+		Timestamp:  params.Timestamp,
+	}
+}
+
+func MongoUUIDToGoUUID(pUUID primitive.Binary) uuid.UUID {
+	return uuid.UUID(pUUID.Data[:])
+}
+
+func GoUUIDToMongoUUID(gUUID uuid.UUID) primitive.Binary {
+	return primitive.Binary{Subtype: 0x04, Data: []byte(gUUID[:])}
+}

@@ -6,10 +6,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -41,7 +39,7 @@ func (m MongoRepo) SelectChatroomLogs(ctx context.Context, params models.SelectD
 
 	filter := bson.D{{
 		Key:   "chatroom_id",
-		Value: primitive.Binary{Subtype: 0x04, Data: []byte(params.ChatroomID[:])},
+		Value: models.GoUUIDToMongoUUID(params.ChatroomID),
 	}}
 	opts := options.Find().SetSort(bson.D{{Key: "timestamp", Value: -1}})
 	cursor, err := collection.Find(ctx, filter, opts)
@@ -51,19 +49,12 @@ func (m MongoRepo) SelectChatroomLogs(ctx context.Context, params models.SelectD
 
 	var results []models.ChatroomLog
 	for cursor.Next(ctx) {
-		var resultsBson models.ChatroomLogMongo
-		if err := cursor.Decode(&resultsBson); err != nil {
+		var result models.ChatroomLogMongo
+		if err := cursor.Decode(&result); err != nil {
 			return nil, errors.Wrap(err, "failed to decode chatroom logs")
 		}
 
-		res := models.ChatroomLog{
-			ChatroomID: uuid.UUID(resultsBson.ChatroomID.Data[:]),
-			UserID:     uuid.UUID(resultsBson.UserID.Data[:]),
-			Timestamp:  resultsBson.Timestamp,
-			Text:       resultsBson.Text,
-		}
-
-		results = append(results, res)
+		results = append(results, result.ConvertToChatroomLog())
 	}
 
 	if err := cursor.Err(); err != nil {
@@ -76,12 +67,7 @@ func (m MongoRepo) SelectChatroomLogs(ctx context.Context, params models.SelectD
 func (m MongoRepo) InsertChatroomLogs(ctx context.Context, params models.InsertDBMessagesParams) error {
 	collection := m.client.Database(database, nil).Collection("chat_logs")
 
-	if _, err := collection.InsertOne(ctx, models.ChatroomLogMongo{
-		ChatroomID: primitive.Binary{Subtype: 0x04, Data: []byte(params.ChatroomID[:])},
-		UserID:     primitive.Binary{Subtype: 0x04, Data: []byte(params.UserID[:])},
-		Text:       params.Text,
-		Timestamp:  params.Timestamp,
-	}); err != nil {
+	if _, err := collection.InsertOne(ctx, params.ConvertToChatroomLogMongo()); err != nil {
 		return errors.Wrap(err, "failed to insert chatroom message")
 	}
 
