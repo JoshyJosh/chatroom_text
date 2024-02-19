@@ -10,7 +10,7 @@ import (
 type WSMessage struct {
 	Text      string    `json:"msg"`
 	Timestamp time.Time `json:"timestamp"`
-	ClientID  string    `json:"clientID"` // @todo standardize naming to userID
+	UserID    string    `json:"clientID"`
 }
 
 type User struct {
@@ -22,25 +22,25 @@ type ChatroomLog struct {
 	ChatroomID uuid.UUID
 	Timestamp  time.Time
 	Text       string
-	ClientID   uuid.UUID // @todo standardize naming to userID
+	UserID     uuid.UUID
 }
 
 type ChatroomLogMongo struct {
 	ChatroomID primitive.Binary `bson:"chatroom_id"`
 	Timestamp  time.Time        `bson:"timestamp"`
 	Text       string           `bson:"text"`
-	ClientID   primitive.Binary `bson:"client_id"` // @todo standardize naming to userID
+	UserID     primitive.Binary `bson:"client_id"`
 }
 
-type GetDBMessagesParams struct {
+type SelectDBMessagesParams struct {
 	TimestampFrom time.Time
 	ChatroomID    uuid.UUID
 }
 
-type SetDBMessagesParams struct {
+type InsertDBMessagesParams struct {
 	ChatroomID uuid.UUID
 	Timestamp  time.Time
-	ClientID   uuid.UUID // @todo standardize naming to userID
+	UserID     uuid.UUID
 	Text       string
 }
 

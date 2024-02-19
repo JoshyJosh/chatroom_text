@@ -86,7 +86,7 @@ func TestChatroomRosterUserDistribution(t *testing.T) {
 	msg := models.WSMessage{
 		Text:      "test message",
 		Timestamp: curTime,
-		ClientID:  user1.ID.String(),
+		UserID:    user1.ID.String(),
 	}
 
 	msgRaw, err := json.Marshal(msg)

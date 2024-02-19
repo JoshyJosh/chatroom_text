@@ -47,7 +47,7 @@ func (u User) EnterChatroom(ctx context.Context) error {
 		return err
 	}
 
-	logs, err := u.chatroomLogger.SelectChatroomLogs(ctx, models.GetDBMessagesParams{
+	logs, err := u.chatroomLogger.SelectChatroomLogs(ctx, models.SelectDBMessagesParams{
 		ChatroomID: models.MainChatUUID,
 	})
 	if err != nil {
@@ -58,7 +58,7 @@ func (u User) EnterChatroom(ctx context.Context) error {
 		msg := models.WSMessage{
 			Text:      l.Text,
 			Timestamp: l.Timestamp,
-			ClientID:  l.ClientID.String(),
+			UserID:    l.UserID.String(),
 		}
 
 		msgRaw, err := json.Marshal(msg)
@@ -74,12 +74,12 @@ func (u User) EnterChatroom(ctx context.Context) error {
 
 func (u User) ReadMessage(ctx context.Context, msg models.WSMessage) {
 	msg.Timestamp = models.StandardizeTime(time.Now())
-	msg.ClientID = u.user.ID.String()
+	msg.UserID = u.user.ID.String()
 
-	err := u.chatroomLogger.InsertChatroomLogs(ctx, models.SetDBMessagesParams{
+	err := u.chatroomLogger.InsertChatroomLogs(ctx, models.InsertDBMessagesParams{
 		ChatroomID: models.MainChatUUID,
 		Timestamp:  msg.Timestamp,
-		ClientID:   u.user.ID,
+		UserID:     u.user.ID,
 		Text:       msg.Text,
 	})
 	if err != nil {

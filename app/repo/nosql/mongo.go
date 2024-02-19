@@ -36,7 +36,7 @@ func GetChatroomLogRepoer(ctx context.Context) (repo.ChatroomLogRepoer, error) {
 	}, nil
 }
 
-func (m MongoRepo) SelectChatroomLogs(ctx context.Context, params models.GetDBMessagesParams) ([]models.ChatroomLog, error) {
+func (m MongoRepo) SelectChatroomLogs(ctx context.Context, params models.SelectDBMessagesParams) ([]models.ChatroomLog, error) {
 	collection := m.client.Database(database, nil).Collection("chat_logs")
 
 	filter := bson.D{{
@@ -58,7 +58,7 @@ func (m MongoRepo) SelectChatroomLogs(ctx context.Context, params models.GetDBMe
 
 		res := models.ChatroomLog{
 			ChatroomID: uuid.UUID(resultsBson.ChatroomID.Data[:]),
-			ClientID:   uuid.UUID(resultsBson.ClientID.Data[:]),
+			UserID:     uuid.UUID(resultsBson.UserID.Data[:]),
 			Timestamp:  resultsBson.Timestamp,
 			Text:       resultsBson.Text,
 		}
@@ -73,12 +73,12 @@ func (m MongoRepo) SelectChatroomLogs(ctx context.Context, params models.GetDBMe
 	return results, nil
 }
 
-func (m MongoRepo) InsertChatroomLogs(ctx context.Context, params models.SetDBMessagesParams) error {
+func (m MongoRepo) InsertChatroomLogs(ctx context.Context, params models.InsertDBMessagesParams) error {
 	collection := m.client.Database(database, nil).Collection("chat_logs")
 
 	if _, err := collection.InsertOne(ctx, models.ChatroomLogMongo{
 		ChatroomID: primitive.Binary{Subtype: 0x04, Data: []byte(params.ChatroomID[:])},
-		ClientID:   primitive.Binary{Subtype: 0x04, Data: []byte(params.ClientID[:])},
+		UserID:     primitive.Binary{Subtype: 0x04, Data: []byte(params.UserID[:])},
 		Text:       params.Text,
 		Timestamp:  params.Timestamp,
 	}); err != nil {
