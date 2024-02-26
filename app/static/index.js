@@ -17,7 +17,7 @@ WS.onmessage = (event) => {
     console.log("onmessage event: ", event);
     msgData = JSON.parse(event.data);
     msg = document.createElement("p");
-    msg.textContent = `${msgData.timestamp}[${msgData.clientID}]:${msgData.msg}`;
+    msg.textContent = `${msgData.timestamp}[${msgData.userName}]:${msgData.msg}`;
     chatDiv.appendChild(msg);
 };
 

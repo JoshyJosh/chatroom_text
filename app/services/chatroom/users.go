@@ -21,7 +21,7 @@ type User struct {
 	chatroomLogger repo.ChatroomLogRepoer
 }
 
-func GetUserServicer(ctx context.Context, writeChan chan []byte) (services.UserServicer, error) {
+func GetUserServicer(ctx context.Context, writeChan chan []byte, userData models.AuthUserData) (services.UserServicer, error) {
 	chatroomLogger, err := chatroomLogger.GetChatroomLogRepoer(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get logger for user servicer")
@@ -35,9 +35,13 @@ func GetUserServicer(ctx context.Context, writeChan chan []byte) (services.UserS
 
 	userService.user = models.User{
 		WriteChan: writeChan,
+		Name:      userData.Name,
+		ID:        userData.ID,
 	}
 
-	userService.user.ID = userService.userRepo.AddUser(userService.user)
+	if err := userService.userRepo.AddUser(userService.user); err != nil {
+		return nil, err
+	}
 
 	return userService, nil
 }
@@ -59,6 +63,7 @@ func (u User) EnterChatroom(ctx context.Context) error {
 			Text:      l.Text,
 			Timestamp: l.Timestamp,
 			UserID:    l.UserID.String(),
+			UserName:  l.UserName,
 		}
 
 		msgRaw, err := json.Marshal(msg)
@@ -75,10 +80,12 @@ func (u User) EnterChatroom(ctx context.Context) error {
 func (u User) ReadMessage(ctx context.Context, msg models.WSMessage) {
 	msg.Timestamp = models.StandardizeTime(time.Now())
 	msg.UserID = u.user.ID.String()
+	msg.UserName = u.user.Name
 
 	err := u.chatroomLogger.InsertChatroomLogs(ctx, models.InsertDBMessagesParams{
 		ChatroomID: models.MainChatUUID,
 		Timestamp:  msg.Timestamp,
+		UserName:   u.user.Name,
 		UserID:     u.user.ID,
 		Text:       msg.Text,
 	})

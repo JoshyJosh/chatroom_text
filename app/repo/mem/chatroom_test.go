@@ -64,8 +64,14 @@ func TestChatroomRosterUserDistribution(t *testing.T) {
 		WriteChan: make(chan []byte, 10),
 	}
 
+	// make sure user1 ID is not same as user2
+	user2ID := uuid.New()
+	for user2ID == user1.ID {
+		user2ID = uuid.New()
+	}
+
 	user2 := models.User{
-		ID:        uuid.New(),
+		ID:        user2ID,
 		WriteChan: make(chan []byte, 10),
 	}
 

@@ -10,11 +10,18 @@ import (
 type WSMessage struct {
 	Text      string    `json:"msg"`
 	Timestamp time.Time `json:"timestamp"`
-	UserID    string    `json:"clientID"`
+	UserID    string    `json:"userID"`
+	UserName  string    `json:"userName"`
+}
+
+type AuthUserData struct {
+	ID   uuid.UUID
+	Name string
 }
 
 type User struct {
 	ID        uuid.UUID
+	Name      string
 	WriteChan chan []byte
 }
 
@@ -23,13 +30,15 @@ type ChatroomLog struct {
 	Timestamp  time.Time
 	Text       string
 	UserID     uuid.UUID
+	UserName   string
 }
 
 type ChatroomLogMongo struct {
 	ChatroomID primitive.Binary `bson:"chatroom_id"`
 	Timestamp  time.Time        `bson:"timestamp"`
 	Text       string           `bson:"text"`
-	UserID     primitive.Binary `bson:"client_id"`
+	UserID     primitive.Binary `bson:"user_id"`
+	UserName   string           `bson:"user_name"`
 }
 
 type SelectDBMessagesParams struct {
@@ -41,6 +50,7 @@ type InsertDBMessagesParams struct {
 	ChatroomID uuid.UUID
 	Timestamp  time.Time
 	UserID     uuid.UUID
+	UserName   string
 	Text       string
 }
 
@@ -55,6 +65,7 @@ func (clm ChatroomLogMongo) ConvertToChatroomLog() ChatroomLog {
 	return ChatroomLog{
 		ChatroomID: MongoUUIDToGoUUID(clm.ChatroomID),
 		UserID:     MongoUUIDToGoUUID(clm.UserID),
+		UserName:   clm.UserName,
 		Timestamp:  clm.Timestamp,
 		Text:       clm.Text,
 	}
@@ -64,6 +75,7 @@ func (params InsertDBMessagesParams) ConvertToChatroomLogMongo() ChatroomLogMong
 	return ChatroomLogMongo{
 		ChatroomID: primitive.Binary{Subtype: 0x04, Data: []byte(params.ChatroomID[:])},
 		UserID:     primitive.Binary{Subtype: 0x04, Data: []byte(params.UserID[:])},
+		UserName:   params.UserName,
 		Text:       params.Text,
 		Timestamp:  params.Timestamp,
 	}

@@ -41,7 +41,7 @@ func (m MongoRepo) SelectChatroomLogs(ctx context.Context, params models.SelectD
 		Key:   "chatroom_id",
 		Value: models.GoUUIDToMongoUUID(params.ChatroomID),
 	}}
-	opts := options.Find().SetSort(bson.D{{Key: "timestamp", Value: -1}})
+	opts := options.Find().SetSort(bson.D{{Key: "timestamp", Value: 1}})
 	cursor, err := collection.Find(ctx, filter, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find chatroom logs")

@@ -20,7 +20,7 @@ type ChatroomRepoer interface {
 
 type UserRepoer interface {
 	// AddUser adds an existing user to chatroom, returns error if user exists.
-	AddUser(user models.User) uuid.UUID
+	AddUser(user models.User) error
 	// ReceiveMessage receives message from user to chatroom.
 	RemoveID(id uuid.UUID)
 }

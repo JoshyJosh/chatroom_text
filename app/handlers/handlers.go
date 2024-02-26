@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"chatroom_text/middleware"
 	"chatroom_text/models"
 	"chatroom_text/services"
 	"chatroom_text/services/chatroom"
@@ -80,12 +81,12 @@ func (userHandle) ConnectWebSocket(c *gin.Context) {
 	logger.Info("connecting websocket")
 	defer logger.Info("exiting websocket")
 
-	cookie, err := c.Request.Cookie("ory_kratos_session")
+	userData, err := middleware.GetAuthClient(logger).GetUserData(c.Request.Context(), c.Request)
 	if err != nil {
 		return
 	}
 
-	if _, ok := wsConnMap.Load(cookie.Value); ok {
+	if _, ok := wsConnMap.Load(userData.ID); ok {
 		return
 	}
 
@@ -98,10 +99,10 @@ func (userHandle) ConnectWebSocket(c *gin.Context) {
 	ctx, cancel := context.WithCancel(c)
 	defer cancel()
 
-	wsConnMap.Store(cookie.Value, struct{}{})
+	wsConnMap.Store(userData.ID, struct{}{})
 	defer func() {
 		slog.Debug("deleting wsConnMap entry")
-		wsConnMap.Delete(cookie.Value)
+		wsConnMap.Delete(userData.ID)
 		slog.Debug("deleted wsConnMap entry")
 	}()
 
@@ -109,7 +110,7 @@ func (userHandle) ConnectWebSocket(c *gin.Context) {
 	readChan := make(chan []byte)
 	closeChan := make(chan struct{})
 
-	userService, err := chatroom.GetUserServicer(ctx, writeChan)
+	userService, err := chatroom.GetUserServicer(ctx, writeChan, userData)
 	if err != nil {
 		logger.Error(err.Error())
 

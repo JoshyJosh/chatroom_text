@@ -22,21 +22,15 @@ func GetUserRepoer() repo.UserRepoer {
 	return userRoster
 }
 
-func (u userWSRoster) AddUser(user models.User) uuid.UUID {
+func (u userWSRoster) AddUser(user models.User) error {
 	slog.Info("adding user to roster")
-	user.ID = uuid.New()
 
-	for {
-		if _, exists := u.userIDMap.LoadOrStore(user.ID, user); exists {
-			user.ID = uuid.New()
-			continue
-		}
-
-		break
+	if _, exists := u.userIDMap.LoadOrStore(user.ID, user); exists {
+		return fmt.Errorf("failed to add user with %s to userWSRoster", user.ID.String())
 	}
 
 	slog.Info(fmt.Sprintf("added user with ID: %s", user.ID))
-	return user.ID
+	return nil
 }
 
 func (u userWSRoster) RemoveID(id uuid.UUID) {
