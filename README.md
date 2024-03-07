@@ -8,7 +8,6 @@ If you're looking for a fancy frontend application, this isn't it :]
 4. (On first sign in) go to `127.0.0.1:4436` in order to access mailslurper and get sign in code.
 5. After the sign in you should be redirected to `127.0.0.1` and see the chatroom. Since its localhost you will be the only one present.
 ### Todo list
-- Make username attribute for kratos auth and propagate it to the application.
 - Make an option for a variable DNS and verify its certs.
 - Add option for multiple users (only one active websocket connection is alllowed by kratos client, DDOS protection)
 - Allow for chatroom creation and user invitation.
