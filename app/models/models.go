@@ -8,10 +8,48 @@ import (
 )
 
 type WSMessage struct {
+	TextMessage     *WSTextMessage   `json:"text"`
+	ChatroomMessage *ChatroomMessage `json:"chatroom"`
+}
+
+type WSTextMessage struct {
 	Text      string    `json:"msg"`
 	Timestamp time.Time `json:"timestamp"`
 	UserID    string    `json:"userID"`
 	UserName  string    `json:"userName"`
+}
+
+type ChatroomMessage struct {
+	Create *WSCreateChatroomMessage `json:"create"`
+	Update *WSUpdateChatroomMessage `json:"update"`
+	Delete *WSDeleteChatroomMessage `json:"remove"`
+}
+
+type WSCreateChatroomMessage struct {
+	ChatroomName string   `json:"chatroomName"`
+	InviteUsers  []string `json:"inviteUsers"`
+}
+
+type WSUpdateChatroomMessage struct {
+	ChatroomName string   `json:"chatroomName"`
+	InviteUsers  []string `json:"inviteUsers"`
+	RemoveUsers  []string `json:"removeUsers"`
+}
+
+type WSDeleteChatroomMessage struct {
+	ChatroomName string `json:"chatroomName"`
+}
+
+type WSCreateChatroomConfirmationMessage struct {
+	Success bool `json:"success"`
+}
+
+type WSUpdateChatroomConfirmationMessage struct {
+	Success bool `json:"success"`
+}
+
+type WSDeleteChatroomConfirmationMessage struct {
+	Success bool `json:"success"`
 }
 
 type AuthUserData struct {

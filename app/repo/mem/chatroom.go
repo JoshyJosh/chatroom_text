@@ -43,7 +43,7 @@ func (c chatroomRoster) RemoveUser(id uuid.UUID) {
 	c.userMap.Delete(id)
 }
 
-func (c *chatroomRoster) ReceiveMessage(msg models.WSMessage) {
+func (c *chatroomRoster) ReceiveMessage(msg models.WSTextMessage) {
 	slog.Info(fmt.Sprintf("received message: %s", msg.Text))
 	msgRaw, err := json.Marshal(msg)
 	if err != nil {

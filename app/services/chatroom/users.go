@@ -59,7 +59,7 @@ func (u User) EnterChatroom(ctx context.Context) error {
 	}
 
 	for _, l := range logs {
-		msg := models.WSMessage{
+		msg := models.WSTextMessage{
 			Text:      l.Text,
 			Timestamp: l.Timestamp,
 			UserID:    l.UserID.String(),
@@ -77,7 +77,7 @@ func (u User) EnterChatroom(ctx context.Context) error {
 	return nil
 }
 
-func (u User) ReadMessage(ctx context.Context, msg models.WSMessage) {
+func (u User) ReadMessage(ctx context.Context, msg models.WSTextMessage) {
 	msg.Timestamp = models.StandardizeTime(time.Now())
 	msg.UserID = u.user.ID.String()
 	msg.UserName = u.user.Name

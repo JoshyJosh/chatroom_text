@@ -89,7 +89,7 @@ func TestChatroomRosterUserDistribution(t *testing.T) {
 	assert.Equal(2, mapLen, "expected one entry in userMap")
 
 	curTime := time.Now()
-	msg := models.WSMessage{
+	msg := models.WSTextMessage{
 		Text:      "test message",
 		Timestamp: curTime,
 		UserID:    user1.ID.String(),
