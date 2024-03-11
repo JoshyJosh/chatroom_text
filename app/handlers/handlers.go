@@ -213,9 +213,21 @@ func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
 			continue
 		}
 
-		slog.Info(fmt.Sprintf("received message: %s", msg.Text))
-
-		u.userService.ReadMessage(ctx, msg)
+		switch {
+		case msg.TextMessage != nil:
+			u.userService.ReadMessage(ctx, *msg.TextMessage)
+		case msg.ChatroomMessage != nil:
+			switch {
+			case msg.ChatroomMessage.Create != nil:
+				// @todo
+			case msg.ChatroomMessage.Update != nil:
+				// @todo
+			case msg.ChatroomMessage.Delete != nil:
+				// @todo
+			}
+		default:
+			slog.Error("Received unknown message")
+		}
 	}
 }
 

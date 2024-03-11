@@ -13,7 +13,7 @@ type ChatroomRepoer interface {
 	// RemoveUser removes user from chatroom.
 	RemoveUser(id uuid.UUID)
 	// ReceiveMessage receives message from user to chatroom.
-	ReceiveMessage(msg models.WSMessage)
+	ReceiveMessage(msg models.WSTextMessage)
 	// DistributeMessage Distributes messages to all users in chatroom.
 	DistributeMessage(message []byte)
 }
