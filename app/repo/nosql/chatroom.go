@@ -4,8 +4,10 @@ import (
 	"chatroom_text/models"
 	"chatroom_text/repo"
 	"context"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -21,7 +23,7 @@ const (
 	database string = "chatroom"
 )
 
-func GetChatroomLogRepoer(ctx context.Context) (repo.ChatroomLogRepoer, error) {
+func GetChatroomNoSQLRepoer(ctx context.Context) (repo.ChatroomNoSQLRepoer, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
@@ -72,4 +74,65 @@ func (m MongoRepo) InsertChatroomLogs(ctx context.Context, params models.InsertD
 	}
 
 	return nil
+}
+
+func (m MongoRepo) CreateChatroom(ctx context.Context, name string, addUsers []string) error {
+
+	chatroomUUID := uuid.New()
+
+	insertDoc := models.NoSQLChatroomName{
+		Name:       name,
+		ChatroomID: models.GoUUIDToMongoUUID(chatroomUUID),
+	}
+
+	chatroomNameCollection := m.client.Database(database, nil).Collection("chatroom_name")
+
+	retryInsert := true
+	for retryInsert {
+		_, err := chatroomNameCollection.InsertOne(
+			ctx,
+			insertDoc,
+		)
+		if err != nil {
+			if mongo.IsDuplicateKeyError(err) {
+				if strings.Contains(err.Error(), "name") {
+					retryInsert = false
+				}
+			}
+
+			if !retryInsert {
+				return errors.Wrap(err, "failed to create chatroom, name already taken")
+			}
+		}
+	}
+
+	return nil
+}
+
+// Update chatroom with add remove user IDs.
+func (m MongoRepo) UpdateChatroom(ctx context.Context, name string, addUsers []string, removeUsers []string) error {
+	return errors.New("not implemented yet")
+}
+
+// Delete chatroom.
+func (m MongoRepo) DeleteChatroom(ctx context.Context, name string) error {
+	return errors.New("not implemented yet")
+}
+
+// Delete chatroom.
+func (m MongoRepo) GetChatroomUUID(ctx context.Context, name string) (uuid.UUID, error) {
+	var chatroomID uuid.UUID
+
+	collection := m.client.Database(database, nil).Collection("chatroom_name")
+
+	filter := bson.D{{
+		Key:   "name",
+		Value: name,
+	}}
+	var chatroomName models.NoSQLChatroomName
+	if err := collection.FindOne(ctx, filter).Decode(&chatroomName); err != nil {
+		return chatroomID, errors.Wrapf(err, "failed to find chatroom with name: %s", name)
+	}
+
+	return models.MongoUUIDToGoUUID(chatroomName.ChatroomID), nil
 }

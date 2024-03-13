@@ -154,10 +154,11 @@ func (userHandle) ConnectWebSocket(c *gin.Context) {
 		}
 	}()
 
+	// entering main chat
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := userService.EnterChatroom(ctx); err != nil {
+		if err := userService.EnterChatroom(ctx, ""); err != nil {
 			logger.Error("failed to enter chatroom", err)
 			cancel()
 		}
@@ -219,7 +220,8 @@ func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
 		case msg.ChatroomMessage != nil:
 			switch {
 			case msg.ChatroomMessage.Create != nil:
-				// @todo
+				// @todo reconsider having return values since it can be propagted via write channel
+				_, _ = u.userService.CreateChatroom(ctx, *msg.ChatroomMessage.Create)
 			case msg.ChatroomMessage.Update != nil:
 				// @todo
 			case msg.ChatroomMessage.Delete != nil:

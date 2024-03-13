@@ -4,33 +4,34 @@ import (
 	"chatroom_text/models"
 	"chatroom_text/repo"
 	chatroomRepo "chatroom_text/repo/mem"
-	chatroomLogger "chatroom_text/repo/nosql"
+	chatroomNoSQL "chatroom_text/repo/nosql"
 	services "chatroom_text/services"
 	"context"
 	"encoding/json"
+	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slog"
 )
 
 type User struct {
-	user           models.User
-	userRepo       repo.UserRepoer
-	chatroomRepo   repo.ChatroomRepoer
-	chatroomLogger repo.ChatroomLogRepoer
+	user                models.User
+	userRepo            repo.UserRepoer
+	chatroomRepos       sync.Map // map which key is the chat uuid and value is repo.ChatroomRepoer
+	chatroomNoSQLRepoer repo.ChatroomNoSQLRepoer
 }
 
 func GetUserServicer(ctx context.Context, writeChan chan []byte, userData models.AuthUserData) (services.UserServicer, error) {
-	chatroomLogger, err := chatroomLogger.GetChatroomLogRepoer(ctx)
+	chatroomNoSQLRepoer, err := chatroomNoSQL.GetChatroomNoSQLRepoer(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get logger for user servicer")
 	}
 
 	userService := User{
-		userRepo:       chatroomRepo.GetUserRepoer(),
-		chatroomRepo:   chatroomRepo.GetChatroomRepoer(),
-		chatroomLogger: chatroomLogger,
+		userRepo:            chatroomRepo.GetUserRepoer(),
+		chatroomNoSQLRepoer: chatroomNoSQLRepoer,
 	}
 
 	userService.user = models.User{
@@ -46,13 +47,23 @@ func GetUserServicer(ctx context.Context, writeChan chan []byte, userData models
 	return userService, nil
 }
 
-func (u User) EnterChatroom(ctx context.Context) error {
-	if err := u.chatroomRepo.AddUser(u.user); err != nil {
+func (u User) EnterChatroom(ctx context.Context, chatroomName string) error {
+	chatroomID := models.MainChatUUID
+	if chatroomName != "" {
+		var err error
+		chatroomID, err = u.chatroomNoSQLRepoer.GetChatroomUUID(ctx, chatroomName)
+		if err != nil {
+			return err
+		}
+	}
+	enteredChatroom := chatroomRepo.GetChatroomRepoer(chatroomID)
+	u.chatroomRepos.Store(chatroomID, enteredChatroom)
+	if err := enteredChatroom.AddUser(u.user); err != nil {
 		return err
 	}
 
-	logs, err := u.chatroomLogger.SelectChatroomLogs(ctx, models.SelectDBMessagesParams{
-		ChatroomID: models.MainChatUUID,
+	logs, err := u.chatroomNoSQLRepoer.SelectChatroomLogs(ctx, models.SelectDBMessagesParams{
+		ChatroomID: chatroomID,
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to get chatroom logs")
@@ -60,10 +71,11 @@ func (u User) EnterChatroom(ctx context.Context) error {
 
 	for _, l := range logs {
 		msg := models.WSTextMessage{
-			Text:      l.Text,
-			Timestamp: l.Timestamp,
-			UserID:    l.UserID.String(),
-			UserName:  l.UserName,
+			Text:       l.Text,
+			Timestamp:  l.Timestamp,
+			UserID:     l.UserID.String(),
+			UserName:   l.UserName,
+			ChatroomID: chatroomID.String(),
 		}
 
 		msgRaw, err := json.Marshal(msg)
@@ -74,6 +86,20 @@ func (u User) EnterChatroom(ctx context.Context) error {
 		u.WriteMessage(msgRaw)
 	}
 
+	// Entry Message
+	msgRaw, err := json.Marshal(models.WSTextMessage{
+		Text:       "entered chat",
+		Timestamp:  time.Now(),
+		UserID:     u.user.ID.String(),
+		UserName:   u.user.Name,
+		ChatroomID: chatroomID.String(),
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal chatroom entry message")
+	}
+
+	u.WriteMessage(msgRaw)
+
 	return nil
 }
 
@@ -81,9 +107,13 @@ func (u User) ReadMessage(ctx context.Context, msg models.WSTextMessage) {
 	msg.Timestamp = models.StandardizeTime(time.Now())
 	msg.UserID = u.user.ID.String()
 	msg.UserName = u.user.Name
+	chatroomID, err := uuid.Parse(msg.ChatroomID)
+	if err != nil {
+		slog.Error("failed to parse chatroomID: ", err.Error())
+	}
 
-	err := u.chatroomLogger.InsertChatroomLogs(ctx, models.InsertDBMessagesParams{
-		ChatroomID: models.MainChatUUID,
+	err = u.chatroomNoSQLRepoer.InsertChatroomLogs(ctx, models.InsertDBMessagesParams{
+		ChatroomID: chatroomID,
 		Timestamp:  msg.Timestamp,
 		UserName:   u.user.Name,
 		UserID:     u.user.ID,
@@ -94,7 +124,11 @@ func (u User) ReadMessage(ctx context.Context, msg models.WSTextMessage) {
 		slog.Error("failed to insert chatroom log", err.Error())
 	}
 
-	u.chatroomRepo.ReceiveMessage(msg)
+	chatroomRepo, loaded := u.chatroomRepos.Load(chatroomID)
+	if !loaded {
+		slog.Error("failed to load chatroom repo with id: ", msg.ChatroomID)
+	}
+	chatroomRepo.(repo.ChatroomRepoer).ReceiveMessage(msg)
 }
 
 func (u User) WriteMessage(msgRaw []byte) {
@@ -102,6 +136,26 @@ func (u User) WriteMessage(msgRaw []byte) {
 }
 
 func (u User) RemoveUser() {
-	u.chatroomRepo.RemoveUser(u.user.ID)
+	u.chatroomRepos.Range(func(key, value any) bool {
+		value.(repo.ChatroomRepoer).RemoveUser(u.user.ID)
+		return true
+	})
 	u.userRepo.RemoveID(u.user.ID)
+}
+
+// todo consider just writing the error in write channel
+func (u User) CreateChatroom(ctx context.Context, msg models.WSCreateChatroomMessage) (models.WSCreateChatroomConfirmationMessage, error) {
+	if err := u.chatroomNoSQLRepoer.CreateChatroom(ctx, msg.ChatroomName, msg.InviteUsers); err != nil {
+		return models.WSCreateChatroomConfirmationMessage{}, err
+	}
+	if err := u.EnterChatroom(ctx, msg.ChatroomName); err != nil {
+		return models.WSCreateChatroomConfirmationMessage{}, err
+	}
+	return models.WSCreateChatroomConfirmationMessage{}, nil
+}
+func (u User) UpdateChatroom(ctx context.Context, msg models.WSUpdateChatroomMessage) (models.WSUpdateChatroomConfirmationMessage, error) {
+	return models.WSUpdateChatroomConfirmationMessage{}, nil
+}
+func (u User) DeleteChatroom(ctx context.Context, msg models.WSDeleteChatroomMessage) (models.WSDeleteChatroomConfirmationMessage, error) {
+	return models.WSDeleteChatroomConfirmationMessage{}, nil
 }

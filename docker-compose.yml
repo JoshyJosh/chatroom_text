@@ -13,9 +13,9 @@ services:
       - KRATOS_URL=http://kratos:4433
 
   mongodb:
-    image: mongo:jammy
-    # ports:
-    #   - "27017:27017"
+    build: ./mongo
+    ports:
+      - "27017:27017"
     networks:
       - app_network
   

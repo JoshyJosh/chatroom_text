@@ -18,13 +18,30 @@ type chatroomRoster struct {
 	logs    []models.ChatroomLog
 }
 
-var chatroom chatroomRoster = chatroomRoster{
+// @todo switch to rabbitMQ in order to have scalability
+// map of key uuid and value chatroomRoster pointer
+var chatroomMap sync.Map
+
+var mainchat = chatroomRoster{
 	userMap: &sync.Map{},
 	logs:    []models.ChatroomLog{},
 }
 
-func GetChatroomRepoer() repo.ChatroomRepoer {
-	return &chatroom
+func init() {
+	chatroomMap.Store(models.MainChatUUID, &mainchat)
+}
+
+func GetChatroomRepoer(uuid uuid.UUID) repo.ChatroomRepoer {
+	roster, _ := chatroomMap.LoadOrStore(
+		uuid,
+		&chatroomRoster{
+			userMap: &sync.Map{},
+			logs:    []models.ChatroomLog{},
+		},
+	)
+
+	return roster.(*chatroomRoster)
+
 }
 
 func (c chatroomRoster) AddUser(user models.User) error {
