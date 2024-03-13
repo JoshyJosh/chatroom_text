@@ -13,10 +13,11 @@ type WSMessage struct {
 }
 
 type WSTextMessage struct {
-	Text      string    `json:"msg"`
-	Timestamp time.Time `json:"timestamp"`
-	UserID    string    `json:"userID"`
-	UserName  string    `json:"userName"`
+	Text       string    `json:"msg"`
+	Timestamp  time.Time `json:"timestamp"`
+	UserID     string    `json:"userID"`
+	UserName   string    `json:"userName"`
+	ChatroomID string    `json:"chatroomID"`
 }
 
 type ChatroomMessage struct {
@@ -71,12 +72,18 @@ type ChatroomLog struct {
 	UserName   string
 }
 
+// @todo standardize origin with prefix NoSQL
 type ChatroomLogMongo struct {
 	ChatroomID primitive.Binary `bson:"chatroom_id"`
 	Timestamp  time.Time        `bson:"timestamp"`
 	Text       string           `bson:"text"`
 	UserID     primitive.Binary `bson:"user_id"`
 	UserName   string           `bson:"user_name"`
+}
+
+type NoSQLChatroomName struct {
+	Name       string           `bson:"name"`
+	ChatroomID primitive.Binary `bson:"chatroom_id"`
 }
 
 type SelectDBMessagesParams struct {

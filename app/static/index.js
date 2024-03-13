@@ -6,7 +6,8 @@ console.log("establishing websocket");
 WS = new WebSocket('wss://127.0.0.1/websocket/');
 WS.onopen = (event) => {
     console.log("onopen event: ", event);
-    WS.send('{"msg":"entered chat"}');
+    // @todo make a way to send initial message
+    // WS.send('{"text":{"msg":"entered chat"}}');
 };
 
 WS.onerror = (event) => {
@@ -31,7 +32,7 @@ WS.onclose = (event) => {
 function sendMessage(event) {
     if (event.inputType === "insertLineBreak" || event.type === "click") {
         let msgText = chatInput.value;
-        WS.send(`{"msg":"${msgText}"}`);
+        WS.send(`{"text":{"msg":"${msgText}"}}`);
         chatInput.value = "";
 
         if (event.type === "click") {

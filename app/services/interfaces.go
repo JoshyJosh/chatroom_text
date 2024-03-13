@@ -13,11 +13,9 @@ type UserServicer interface {
 	// RemoveUser removes user from chatroom and user roster.
 	RemoveUser()
 	// Add user to chatroom and retrieve its logs.
-	EnterChatroom(ctx context.Context) error
-}
+	EnterChatroom(ctx context.Context, name string) error
 
-type ChatroomServicer interface {
-	CreateChatroom(ctx context.Context, msg models.WSCreateChatroomMessage) models.WSCreateChatroomConfirmationMessage
-	UpdateChatroom(ctx context.Context, msg models.WSUpdateChatroomMessage) models.WSUpdateChatroomConfirmationMessage
-	DeleteChatroom(ctx context.Context, msg models.WSDeleteChatroomMessage) models.WSDeleteChatroomConfirmationMessage
+	CreateChatroom(ctx context.Context, msg models.WSCreateChatroomMessage) (models.WSCreateChatroomConfirmationMessage, error)
+	UpdateChatroom(ctx context.Context, msg models.WSUpdateChatroomMessage) (models.WSUpdateChatroomConfirmationMessage, error)
+	DeleteChatroom(ctx context.Context, msg models.WSDeleteChatroomMessage) (models.WSDeleteChatroomConfirmationMessage, error)
 }

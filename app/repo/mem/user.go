@@ -18,6 +18,7 @@ var userRoster userWSRoster = userWSRoster{
 	userIDMap: &sync.Map{},
 }
 
+// @todo consider if it is needed to have a roster of all connected users on a user basis
 func GetUserRepoer() repo.UserRepoer {
 	return userRoster
 }
