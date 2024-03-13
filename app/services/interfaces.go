@@ -15,7 +15,7 @@ type UserServicer interface {
 	// Add user to chatroom and retrieve its logs.
 	EnterChatroom(ctx context.Context, name string) error
 
-	CreateChatroom(ctx context.Context, msg models.WSCreateChatroomMessage) (models.WSCreateChatroomConfirmationMessage, error)
-	UpdateChatroom(ctx context.Context, msg models.WSUpdateChatroomMessage) (models.WSUpdateChatroomConfirmationMessage, error)
-	DeleteChatroom(ctx context.Context, msg models.WSDeleteChatroomMessage) (models.WSDeleteChatroomConfirmationMessage, error)
+	CreateChatroom(ctx context.Context, msg models.WSChatroomCreateMessage) (models.WSCreateChatroomConfirmationMessage, error)
+	UpdateChatroom(ctx context.Context, msg models.WSChatroomUpdateMessage) (models.WSUpdateChatroomConfirmationMessage, error)
+	DeleteChatroom(ctx context.Context, msg models.WSChatroomDeleteMessage) (models.WSDeleteChatroomConfirmationMessage, error)
 }

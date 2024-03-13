@@ -8,8 +8,8 @@ import (
 )
 
 type WSMessage struct {
-	TextMessage     *WSTextMessage   `json:"text"`
-	ChatroomMessage *ChatroomMessage `json:"chatroom"`
+	TextMessage     *WSTextMessage   `json:"text,omitempty"`
+	ChatroomMessage *ChatroomMessage `json:"chatroom,omitempty"`
 }
 
 type WSTextMessage struct {
@@ -21,24 +21,32 @@ type WSTextMessage struct {
 }
 
 type ChatroomMessage struct {
-	Create *WSCreateChatroomMessage `json:"create"`
-	Update *WSUpdateChatroomMessage `json:"update"`
-	Delete *WSDeleteChatroomMessage `json:"remove"`
+	Create *WSChatroomCreateMessage `json:"create"`
+	Update *WSChatroomUpdateMessage `json:"update"`
+	Delete *WSChatroomDeleteMessage `json:"remove"`
+
+	// Used for users to invite users in chatrooms.
+	Enter *WSChatroomEnterMessage `json:"enter"`
 }
 
-type WSCreateChatroomMessage struct {
+type WSChatroomCreateMessage struct {
 	ChatroomName string   `json:"chatroomName"`
 	InviteUsers  []string `json:"inviteUsers"`
 }
 
-type WSUpdateChatroomMessage struct {
+type WSChatroomUpdateMessage struct {
 	ChatroomName string   `json:"chatroomName"`
 	InviteUsers  []string `json:"inviteUsers"`
 	RemoveUsers  []string `json:"removeUsers"`
 }
 
-type WSDeleteChatroomMessage struct {
+type WSChatroomDeleteMessage struct {
 	ChatroomName string `json:"chatroomName"`
+}
+
+type WSChatroomEnterMessage struct {
+	ChatroomName string `json:"chatroomName"`
+	ChatroomID   string `json:"chatroomID"`
 }
 
 type WSCreateChatroomConfirmationMessage struct {
