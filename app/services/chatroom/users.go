@@ -19,7 +19,7 @@ import (
 type User struct {
 	user                models.User
 	userRepo            repo.UserRepoer
-	chatroomRepos       sync.Map // map which key is the chat uuid and value is repo.ChatroomRepoer
+	chatroomRepos       *sync.Map // map which key is the chat uuid and value is repo.ChatroomRepoer
 	chatroomNoSQLRepoer repo.ChatroomNoSQLRepoer
 }
 
@@ -32,6 +32,7 @@ func GetUserServicer(ctx context.Context, writeChan chan []byte, userData models
 	userService := User{
 		userRepo:            chatroomRepo.GetUserRepoer(),
 		chatroomNoSQLRepoer: chatroomNoSQLRepoer,
+		chatroomRepos:       &sync.Map{},
 	}
 
 	userService.user = models.User{
@@ -55,6 +56,8 @@ func (u User) EnterChatroom(ctx context.Context, chatroomName string) error {
 		if err != nil {
 			return err
 		}
+	} else {
+		chatroomName = "mainChat"
 	}
 	enteredChatroom := chatroomRepo.GetChatroomRepoer(chatroomID)
 	u.chatroomRepos.Store(chatroomID, enteredChatroom)
@@ -78,7 +81,9 @@ func (u User) EnterChatroom(ctx context.Context, chatroomName string) error {
 			ChatroomID: chatroomID.String(),
 		}
 
-		msgRaw, err := json.Marshal(msg)
+		msgRaw, err := json.Marshal(models.WSMessage{
+			TextMessage: &msg,
+		})
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal chatroom logs")
 		}
@@ -86,13 +91,22 @@ func (u User) EnterChatroom(ctx context.Context, chatroomName string) error {
 		u.WriteMessage(msgRaw)
 	}
 
-	// Entry Message
-	msgRaw, err := json.Marshal(models.WSTextMessage{
+	// Send entry text message to all people in chatroom.
+	u.ReadMessage(ctx, models.WSTextMessage{
 		Text:       "entered chat",
-		Timestamp:  time.Now(),
+		Timestamp:  models.StandardizeTime(time.Now()),
 		UserID:     u.user.ID.String(),
 		UserName:   u.user.Name,
 		ChatroomID: chatroomID.String(),
+	})
+
+	msgRaw, err := json.Marshal(models.WSMessage{
+		ChatroomMessage: &models.ChatroomMessage{
+			Enter: &models.WSChatroomEnterMessage{
+				ChatroomID:   chatroomID.String(),
+				ChatroomName: chatroomName,
+			},
+		},
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal chatroom entry message")
@@ -144,7 +158,7 @@ func (u User) RemoveUser() {
 }
 
 // todo consider just writing the error in write channel
-func (u User) CreateChatroom(ctx context.Context, msg models.WSCreateChatroomMessage) (models.WSCreateChatroomConfirmationMessage, error) {
+func (u User) CreateChatroom(ctx context.Context, msg models.WSChatroomCreateMessage) (models.WSCreateChatroomConfirmationMessage, error) {
 	if err := u.chatroomNoSQLRepoer.CreateChatroom(ctx, msg.ChatroomName, msg.InviteUsers); err != nil {
 		return models.WSCreateChatroomConfirmationMessage{}, err
 	}
@@ -153,9 +167,9 @@ func (u User) CreateChatroom(ctx context.Context, msg models.WSCreateChatroomMes
 	}
 	return models.WSCreateChatroomConfirmationMessage{}, nil
 }
-func (u User) UpdateChatroom(ctx context.Context, msg models.WSUpdateChatroomMessage) (models.WSUpdateChatroomConfirmationMessage, error) {
+func (u User) UpdateChatroom(ctx context.Context, msg models.WSChatroomUpdateMessage) (models.WSUpdateChatroomConfirmationMessage, error) {
 	return models.WSUpdateChatroomConfirmationMessage{}, nil
 }
-func (u User) DeleteChatroom(ctx context.Context, msg models.WSDeleteChatroomMessage) (models.WSDeleteChatroomConfirmationMessage, error) {
+func (u User) DeleteChatroom(ctx context.Context, msg models.WSChatroomDeleteMessage) (models.WSDeleteChatroomConfirmationMessage, error) {
 	return models.WSDeleteChatroomConfirmationMessage{}, nil
 }

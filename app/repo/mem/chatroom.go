@@ -20,7 +20,7 @@ type chatroomRoster struct {
 
 // @todo switch to rabbitMQ in order to have scalability
 // map of key uuid and value chatroomRoster pointer
-var chatroomMap sync.Map
+var chatroomMap = &sync.Map{}
 
 var mainchat = chatroomRoster{
 	userMap: &sync.Map{},
@@ -62,7 +62,9 @@ func (c chatroomRoster) RemoveUser(id uuid.UUID) {
 
 func (c *chatroomRoster) ReceiveMessage(msg models.WSTextMessage) {
 	slog.Info(fmt.Sprintf("received message: %s", msg.Text))
-	msgRaw, err := json.Marshal(msg)
+	msgRaw, err := json.Marshal(models.WSMessage{
+		TextMessage: &msg,
+	})
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to unmarshal received message: %v", msg))
 		return
@@ -75,6 +77,7 @@ func (c *chatroomRoster) DistributeMessage(msgRaw []byte) {
 	slog.Info("distributing message")
 
 	c.userMap.Range(func(key, user any) bool {
+		slog.Info(fmt.Sprintf("Sending to user entry: %v", user))
 		u, ok := user.(models.User)
 		if !ok {
 			slog.Error(fmt.Sprintf("failed to convert client %s in map range, client type %T", key, user))

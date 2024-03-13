@@ -1,6 +1,9 @@
 var chatDiv = document.getElementById("chatLog");
 var chatInput = document.getElementById("chatInput");
 var chatButton = document.getElementById("chatButton");
+var chatroomSelectDiv = document.getElementById("chatroomSelect");
+
+var chatroomID = ""
 
 console.log("establishing websocket");
 WS = new WebSocket('wss://127.0.0.1/websocket/');
@@ -17,9 +20,18 @@ WS.onerror = (event) => {
 WS.onmessage = (event) => {
     console.log("onmessage event: ", event);
     msgData = JSON.parse(event.data);
-    msg = document.createElement("p");
-    msg.textContent = `${msgData.timestamp}[${msgData.userName}]:${msgData.msg}`;
-    chatDiv.appendChild(msg);
+    if (msgData.hasOwnProperty("text")) {
+        msgP = document.createElement("p");
+        msgP.textContent = `${msgData.text.timestamp}[${msgData.text.userName}]:${msgData.text.msg}`;
+        chatDiv.appendChild(msgP);
+    } else if (msgData.hasOwnProperty("chatroom")) {
+        if (msgData.chatroom.hasOwnProperty("enter")) {
+            chatroomID = msgData.chatroom.enter.chatroomID;
+            chatroomP = document.createElement("p");
+            chatroomP.textContent = msgData.chatroom.enter.chatroomName;
+            chatroomSelectDiv.appendChild(chatroomP);
+        }
+    }
 };
 
 WS.onclose = (event) => {
@@ -32,7 +44,7 @@ WS.onclose = (event) => {
 function sendMessage(event) {
     if (event.inputType === "insertLineBreak" || event.type === "click") {
         let msgText = chatInput.value;
-        WS.send(`{"text":{"msg":"${msgText}"}}`);
+        WS.send(`{"text":{"msg":"${msgText}","chatroomID":"${chatroomID}"}}`);
         chatInput.value = "";
 
         if (event.type === "click") {
