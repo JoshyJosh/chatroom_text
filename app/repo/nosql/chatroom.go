@@ -87,8 +87,7 @@ func (m MongoRepo) CreateChatroom(ctx context.Context, name string, addUsers []s
 
 	chatroomNameCollection := m.client.Database(database, nil).Collection("chatroom_name")
 
-	retryInsert := true
-	for retryInsert {
+	for {
 		_, err := chatroomNameCollection.InsertOne(
 			ctx,
 			insertDoc,
@@ -96,14 +95,14 @@ func (m MongoRepo) CreateChatroom(ctx context.Context, name string, addUsers []s
 		if err != nil {
 			if mongo.IsDuplicateKeyError(err) {
 				if strings.Contains(err.Error(), "name") {
-					retryInsert = false
+					return errors.Wrapf(err, "failed to create chatroom, name \"%s\" already taken", name)
 				}
 			}
 
-			if !retryInsert {
-				return errors.Wrap(err, "failed to create chatroom, name already taken")
-			}
+			continue
 		}
+
+		break
 	}
 
 	return nil

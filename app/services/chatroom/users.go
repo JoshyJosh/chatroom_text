@@ -59,6 +59,8 @@ func (u User) EnterChatroom(ctx context.Context, chatroomName string) error {
 	} else {
 		chatroomName = "mainChat"
 	}
+
+	slog.Info("chatroomID: ", chatroomID.String())
 	enteredChatroom := chatroomRepo.GetChatroomRepoer(chatroomID)
 	u.chatroomRepos.Store(chatroomID, enteredChatroom)
 	if err := enteredChatroom.AddUser(u.user); err != nil {
@@ -159,12 +161,15 @@ func (u User) RemoveUser() {
 
 // todo consider just writing the error in write channel
 func (u User) CreateChatroom(ctx context.Context, msg models.WSChatroomCreateMessage) (models.WSCreateChatroomConfirmationMessage, error) {
+	slog.Info("creating chatroom")
 	if err := u.chatroomNoSQLRepoer.CreateChatroom(ctx, msg.ChatroomName, msg.InviteUsers); err != nil {
-		return models.WSCreateChatroomConfirmationMessage{}, err
+		slog.Error("failed to create chatroom ", err)
 	}
+
 	if err := u.EnterChatroom(ctx, msg.ChatroomName); err != nil {
-		return models.WSCreateChatroomConfirmationMessage{}, err
+		slog.Error("failed to enter chatroom ", err)
 	}
+	slog.Info("finishing create chatroom")
 	return models.WSCreateChatroomConfirmationMessage{}, nil
 }
 func (u User) UpdateChatroom(ctx context.Context, msg models.WSChatroomUpdateMessage) (models.WSUpdateChatroomConfirmationMessage, error) {
