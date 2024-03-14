@@ -159,22 +159,26 @@ func (u User) RemoveUser() {
 	u.userRepo.RemoveID(u.user.ID)
 }
 
-// todo consider just writing the error in write channel
-func (u User) CreateChatroom(ctx context.Context, msg models.WSChatroomCreateMessage) (models.WSCreateChatroomConfirmationMessage, error) {
+// @todo consider just writing the error in write channel
+func (u User) CreateChatroom(ctx context.Context, msg models.WSChatroomCreateMessage) {
 	slog.Info("creating chatroom")
 	if err := u.chatroomNoSQLRepoer.CreateChatroom(ctx, msg.ChatroomName, msg.InviteUsers); err != nil {
 		slog.Error("failed to create chatroom ", err)
+		return
 	}
 
 	if err := u.EnterChatroom(ctx, msg.ChatroomName); err != nil {
 		slog.Error("failed to enter chatroom ", err)
+		return
 	}
+
 	slog.Info("finishing create chatroom")
-	return models.WSCreateChatroomConfirmationMessage{}, nil
 }
-func (u User) UpdateChatroom(ctx context.Context, msg models.WSChatroomUpdateMessage) (models.WSUpdateChatroomConfirmationMessage, error) {
-	return models.WSUpdateChatroomConfirmationMessage{}, nil
+
+func (u User) UpdateChatroom(ctx context.Context, msg models.WSChatroomUpdateMessage) {
+	// @todo implement
 }
-func (u User) DeleteChatroom(ctx context.Context, msg models.WSChatroomDeleteMessage) (models.WSDeleteChatroomConfirmationMessage, error) {
-	return models.WSDeleteChatroomConfirmationMessage{}, nil
+
+func (u User) DeleteChatroom(ctx context.Context, msg models.WSChatroomDeleteMessage) {
+	// @todo implement
 }

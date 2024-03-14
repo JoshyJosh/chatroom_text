@@ -221,7 +221,7 @@ func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
 			switch {
 			case msg.ChatroomMessage.Create != nil:
 				// @todo reconsider having return values since it can be propagted via write channel
-				_, _ = u.userService.CreateChatroom(ctx, *msg.ChatroomMessage.Create)
+				u.userService.CreateChatroom(ctx, *msg.ChatroomMessage.Create)
 			case msg.ChatroomMessage.Update != nil:
 				// @todo
 			case msg.ChatroomMessage.Delete != nil:
