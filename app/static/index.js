@@ -1,7 +1,9 @@
 var chatDiv = document.getElementById("chatLog");
 var chatInput = document.getElementById("chatInput");
 var chatButton = document.getElementById("chatButton");
-var chatroomSelectDiv = document.getElementById("chatroomSelect");
+var chatroomSelectDiv = document.getElementById("chatroomSelectDiv");
+var chatroomCreateInput = document.getElementById("chatroomCreateInput");
+var chatroomCreateButton = document.getElementById("chatroomCreateButton");
 
 var chatroomID = ""
 
@@ -9,8 +11,6 @@ console.log("establishing websocket");
 WS = new WebSocket('wss://127.0.0.1/websocket/');
 WS.onopen = (event) => {
     console.log("onopen event: ", event);
-    // @todo make a way to send initial message
-    // WS.send('{"text":{"msg":"entered chat"}}');
 };
 
 WS.onerror = (event) => {
@@ -42,7 +42,7 @@ WS.onclose = (event) => {
 };
 
 function sendMessage(event) {
-    if (event.inputType === "insertLineBreak" || event.type === "click") {
+    if ((event.inputType === "insertLineBreak" && event.originalTarget === chatInput) || event.type === "click") {
         let msgText = chatInput.value;
         WS.send(`{"text":{"msg":"${msgText}","chatroomID":"${chatroomID}"}}`);
         chatInput.value = "";
@@ -62,3 +62,23 @@ chatButton.addEventListener ("click",function(event) {
 });
 
 chatInput.focus();
+
+function createChatMessage(event) {
+    if ((event.inputType === "insertLineBreak" && event.originalTarget === chatroomCreateInput) || event.type === "click") {
+        let chatroomName = chatroomCreateInput.value;
+        WS.send(`{"chatroom":{"create":{"chatroomName":"${chatroomName}"}}}`);
+        chatroomCreateInput.value = "";
+
+        if (event.type === "click") {
+            chatInput.focus();
+        }
+    }
+};
+
+chatroomCreateInput.addEventListener ("beforeinput",function(event) {
+    createChatMessage(event);
+});
+
+chatroomCreateButton.addEventListener ("click",function(event) {
+    createChatMessage(event);
+});

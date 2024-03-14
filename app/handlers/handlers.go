@@ -189,8 +189,8 @@ func (u userWebsocketHandle) writeMsg(ctx context.Context, msg []byte) {
 }
 
 func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
-	var msg models.WSMessage
 	for {
+		var msg models.WSMessage
 		if err := wsjson.Read(ctx, u.conn, &msg); err != nil {
 			slog.Info(fmt.Sprintf("got error status: %s", websocket.CloseStatus(err).String()))
 			if websocket.CloseStatus(err) == websocket.StatusAbnormalClosure ||
