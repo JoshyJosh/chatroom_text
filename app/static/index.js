@@ -4,6 +4,7 @@ var chatButton = document.getElementById("chatButton");
 var chatroomSelectDiv = document.getElementById("chatroomSelectDiv");
 var chatroomCreateInput = document.getElementById("chatroomCreateInput");
 var chatroomCreateButton = document.getElementById("chatroomCreateButton");
+var currentChatNameTitle = document.getElementById("currentChatNameTitle");
 
 var chatroomMap = {};
 var currentChatroomID = "";
@@ -30,16 +31,20 @@ WS.onmessage = (event) => {
         appendChatLogDOM(msgData.text.chatroomID);
     } else if (msgData.hasOwnProperty("chatroom")) {
         if (msgData.chatroom.hasOwnProperty("enter")) {
-            chatroomMap[msgData.chatroom.enter.chatroomID] = {
+            let chatroomID = msgData.chatroom.enter.chatroomID; 
+            chatroomMap[chatroomID] = {
                 name: msgData.chatroom.enter.chatroomName,
                 logs: []
             };
 
-            currentChatroomID = msgData.chatroom.enter.chatroomID;
-
             chatroomP = document.createElement("p");
             chatroomP.textContent = msgData.chatroom.enter.chatroomName;
+            chatroomP.setAttribute("chatroomID", chatroomID);
+            chatroomP.className = "chatroomRosterEntry";
+            chatroomP.addEventListener("click", selectChatroomEntryBtn);
             chatroomSelectDiv.appendChild(chatroomP);
+
+            selectChatroomEntry(chatroomID)
         }
     }
 };
@@ -99,7 +104,7 @@ function generateChatLogDOM(chatroomID) {
         chatLogDiv.removeChild(chatLogDiv.firstChild);
     }
     
-    chatroomMap[chatroomID].map(function(logElement) {
+    chatroomMap[chatroomID].logs.map(function(logElement) {
         msgP = document.createElement("p");
         msgP.textContent = logElement;
         chatLogDiv.appendChild(msgP);
@@ -112,4 +117,21 @@ function appendChatLogDOM(chatroomID) {
         msgP.textContent = `${msgData.text.timestamp}[${msgData.text.userName}]:${msgData.text.msg}`;
         chatLogDiv.appendChild(msgP);       
     }
+}
+
+function selectChatroomEntryBtn (event) {
+    let chatroomID = event.originalTarget.getAttribute("chatroomid");
+
+    selectChatroomEntry(chatroomID);
+}
+
+function selectChatroomEntry (chatroomID) {
+    if (currentChatroomID === chatroomID) {
+        return;
+    }
+
+    currentChatNameTitle.innerText = chatroomMap[chatroomID].name;
+
+    generateChatLogDOM(chatroomID);
+    currentChatroomID = chatroomID;
 }
