@@ -13,6 +13,7 @@ import (
 	"golang.org/x/exp/slog"
 )
 
+// @todo consider moving to models
 type chatroomRoster struct {
 	userMap *sync.Map
 	logs    []models.ChatroomLog
