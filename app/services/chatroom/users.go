@@ -67,6 +67,20 @@ func (u User) EnterChatroom(ctx context.Context, chatroomName string) error {
 		return err
 	}
 
+	msgRaw, err := json.Marshal(models.WSMessage{
+		ChatroomMessage: &models.ChatroomMessage{
+			Enter: &models.WSChatroomEnterMessage{
+				ChatroomName: chatroomName,
+				ChatroomID:   chatroomID.String(),
+			},
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal chatroom entry message")
+	}
+
+	u.WriteMessage(msgRaw)
+
 	logs, err := u.chatroomNoSQLRepoer.SelectChatroomLogs(ctx, models.SelectDBMessagesParams{
 		ChatroomID: chatroomID,
 	})
@@ -102,20 +116,6 @@ func (u User) EnterChatroom(ctx context.Context, chatroomName string) error {
 		ChatroomID: chatroomID.String(),
 	})
 
-	msgRaw, err := json.Marshal(models.WSMessage{
-		ChatroomMessage: &models.ChatroomMessage{
-			Enter: &models.WSChatroomEnterMessage{
-				ChatroomID:   chatroomID.String(),
-				ChatroomName: chatroomName,
-			},
-		},
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal chatroom entry message")
-	}
-
-	u.WriteMessage(msgRaw)
-
 	return nil
 }
 
@@ -123,6 +123,7 @@ func (u User) ReadMessage(ctx context.Context, msg models.WSTextMessage) {
 	msg.Timestamp = models.StandardizeTime(time.Now())
 	msg.UserID = u.user.ID.String()
 	msg.UserName = u.user.Name
+
 	chatroomID, err := uuid.Parse(msg.ChatroomID)
 	if err != nil {
 		slog.Error("failed to parse chatroomID: ", err.Error())
