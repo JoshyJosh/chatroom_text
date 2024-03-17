@@ -80,15 +80,16 @@ func (m MongoRepo) CreateChatroom(ctx context.Context, name string, addUsers []s
 
 	chatroomUUID := uuid.New()
 
-	insertDoc := models.NoSQLChatroomName{
+	insertDoc := models.NoSQLChatroomEntry{
 		Name:       name,
 		ChatroomID: models.GoUUIDToMongoUUID(chatroomUUID),
+		IsActive:   true,
 	}
 
-	chatroomNameCollection := m.client.Database(database, nil).Collection("chatroom_name")
+	collection := m.client.Database(database, nil).Collection("chatroom_list")
 
 	for {
-		_, err := chatroomNameCollection.InsertOne(
+		_, err := collection.InsertOne(
 			ctx,
 			insertDoc,
 		)
@@ -114,21 +115,28 @@ func (m MongoRepo) UpdateChatroom(ctx context.Context, name string, addUsers []s
 }
 
 // Delete chatroom.
-func (m MongoRepo) DeleteChatroom(ctx context.Context, name string) error {
-	return errors.New("not implemented yet")
+func (m MongoRepo) DeleteChatroom(ctx context.Context, chatroomID uuid.UUID) error {
+	collection := m.client.Database(database, nil).Collection("chatroom_list")
+
+	filter := bson.D{{Key: "chatroom_id", Value: models.GoUUIDToMongoUUID(chatroomID)}}
+	if _, err := collection.DeleteOne(ctx, filter); err != nil {
+		return errors.Wrap(err, "failed to delete chatroom")
+	}
+
+	return nil
 }
 
 // Delete chatroom.
 func (m MongoRepo) GetChatroomUUID(ctx context.Context, name string) (uuid.UUID, error) {
 	var chatroomID uuid.UUID
 
-	collection := m.client.Database(database, nil).Collection("chatroom_name")
+	collection := m.client.Database(database, nil).Collection("chatroom_list")
 
 	filter := bson.D{{
 		Key:   "name",
 		Value: name,
 	}}
-	var chatroomName models.NoSQLChatroomName
+	var chatroomName models.NoSQLChatroomEntry
 	if err := collection.FindOne(ctx, filter).Decode(&chatroomName); err != nil {
 		return chatroomID, errors.Wrapf(err, "failed to find chatroom with name: %s", name)
 	}

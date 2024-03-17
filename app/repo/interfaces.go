@@ -33,6 +33,6 @@ type ChatroomNoSQLRepoer interface {
 	// Update chatroom with add remove user IDs.
 	UpdateChatroom(ctx context.Context, name string, addUsers []string, removeUsers []string) error
 	// Delete chatroom.
-	DeleteChatroom(ctx context.Context, name string) error
+	DeleteChatroom(ctx context.Context, chatroomID uuid.UUID) error
 	GetChatroomUUID(ctx context.Context, name string) (uuid.UUID, error)
 }
