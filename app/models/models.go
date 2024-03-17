@@ -21,12 +21,12 @@ type WSTextMessage struct {
 }
 
 type ChatroomMessage struct {
-	Create *WSChatroomCreateMessage `json:"create"`
-	Update *WSChatroomUpdateMessage `json:"update"`
-	Delete *WSChatroomDeleteMessage `json:"remove"`
+	Create *WSChatroomCreateMessage `json:"create,omitempty"`
+	Update *WSChatroomUpdateMessage `json:"update,omitempty"`
+	Delete *WSChatroomDeleteMessage `json:"delete,omitempty"`
 
 	// Used for users to invite users in chatrooms.
-	Enter *WSChatroomEnterMessage `json:"enter"`
+	Enter *WSChatroomEnterMessage `json:"enter,omitempty"`
 }
 
 type WSChatroomCreateMessage struct {
@@ -41,7 +41,7 @@ type WSChatroomUpdateMessage struct {
 }
 
 type WSChatroomDeleteMessage struct {
-	ChatroomName string `json:"chatroomName"`
+	ChatroomID string `json:"chatroomID"`
 }
 
 type WSChatroomEnterMessage struct {
@@ -89,9 +89,10 @@ type ChatroomLogMongo struct {
 	UserName   string           `bson:"user_name"`
 }
 
-type NoSQLChatroomName struct {
+type NoSQLChatroomEntry struct {
 	Name       string           `bson:"name"`
 	ChatroomID primitive.Binary `bson:"chatroom_id"`
+	IsActive   bool             `bson:"is_active"`
 }
 
 type SelectDBMessagesParams struct {

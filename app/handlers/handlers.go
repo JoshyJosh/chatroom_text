@@ -225,7 +225,7 @@ func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
 			case msg.ChatroomMessage.Update != nil:
 				// @todo
 			case msg.ChatroomMessage.Delete != nil:
-				// @todo
+				u.userService.DeleteChatroom(ctx, *msg.ChatroomMessage.Delete)
 			}
 		default:
 			slog.Error("Received unknown message")

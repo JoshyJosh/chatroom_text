@@ -1,7 +1,7 @@
 var chatLogDiv = document.getElementById("chatLogDiv");
 var chatInput = document.getElementById("chatInput");
 var chatButton = document.getElementById("chatButton");
-var chatroomSelectDiv = document.getElementById("chatroomSelectDiv");
+var chatroomSelectList = document.getElementById("chatroomSelectList");
 var chatroomCreateInput = document.getElementById("chatroomCreateInput");
 var chatroomCreateButton = document.getElementById("chatroomCreateButton");
 var currentChatNameTitle = document.getElementById("currentChatNameTitle");
@@ -37,14 +37,40 @@ WS.onmessage = (event) => {
                 logs: []
             };
 
-            chatroomP = document.createElement("p");
-            chatroomP.textContent = msgData.chatroom.enter.chatroomName;
-            chatroomP.setAttribute("chatroomID", chatroomID);
-            chatroomP.className = "chatroomRosterEntry";
-            chatroomP.addEventListener("click", selectChatroomEntryBtn);
-            chatroomSelectDiv.appendChild(chatroomP);
+            let chatroomLi = document.createElement("li"); 
+            chatroomLi.setAttribute("chatroomid", chatroomID);
+            chatroomLi.className = "chatroomRosterEntry";
 
-            selectChatroomEntry(chatroomID)
+            let chatroomP = document.createElement("p");
+            chatroomP.textContent = msgData.chatroom.enter.chatroomName;
+            chatroomP.addEventListener("click", selectChatroomBtn);
+            chatroomLi.appendChild(chatroomP);
+
+            let chatroomDeleteBtn = document.createElement("button");
+            chatroomDeleteBtn.textContent = "Delete";
+            chatroomDeleteBtn.addEventListener("click", deleteChatroomBtn);
+            chatroomLi.appendChild(chatroomDeleteBtn);
+
+            chatroomSelectList.appendChild(chatroomLi);
+
+            selectChatroom(chatroomID)
+        } else if (msgData.chatroom.hasOwnProperty("delete")) {
+            // @todo grey out button
+            let chatroomID = msgData.chatroom.delete.chatroomID; 
+            delete chatroomMap[chatroomID];
+
+            // @todo make better traversal method
+            for (let i = 0; i < chatroomSelectList.childNodes.length; i++) {
+                let childNode = chatroomSelectList.childNodes[i];
+
+                if (childNode.hasAttribute("chatroomid") && childNode.getAttribute("chatroomid") === chatroomID) {
+                    chatroomSelectList.removeChild(childNode);
+                }
+            }
+
+            if (currentChatroomID === chatroomID) {
+                currentChatNameTitle.innerText += " (archived)";
+            }
         }
     }
 };
@@ -119,13 +145,13 @@ function appendChatLogDOM(chatroomID) {
     }
 }
 
-function selectChatroomEntryBtn (event) {
-    let chatroomID = event.originalTarget.getAttribute("chatroomid");
+function selectChatroomBtn (event) {
+    let chatroomID = event.originalTarget.parentNode.getAttribute("chatroomid");
 
-    selectChatroomEntry(chatroomID);
+    selectChatroom(chatroomID);
 }
 
-function selectChatroomEntry (chatroomID) {
+function selectChatroom (chatroomID) {
     if (currentChatroomID === chatroomID) {
         return;
     }
@@ -134,4 +160,14 @@ function selectChatroomEntry (chatroomID) {
 
     generateChatLogDOM(chatroomID);
     currentChatroomID = chatroomID;
+}
+
+function deleteChatroomBtn (event) {
+    let chatroomID = event.originalTarget.parentNode.getAttribute("chatroomid");
+
+    deleteChatroom(chatroomID);
+}
+
+function deleteChatroom (chatroomID) {
+    WS.send(`{"chatroom":{"delete":{"chatroomID":"${chatroomID}"}}}`);
 }

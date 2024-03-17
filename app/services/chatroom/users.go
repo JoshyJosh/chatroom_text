@@ -8,6 +8,7 @@ import (
 	services "chatroom_text/services"
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -76,7 +77,7 @@ func (u User) EnterChatroom(ctx context.Context, chatroomName string) error {
 		},
 	})
 	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal chatroom entry message")
+		return errors.Wrap(err, "failed to marshal chatroom entry message")
 	}
 
 	u.WriteMessage(msgRaw)
@@ -162,7 +163,7 @@ func (u User) RemoveUser() {
 
 // @todo consider just writing the error in write channel
 func (u User) CreateChatroom(ctx context.Context, msg models.WSChatroomCreateMessage) {
-	slog.Info("creating chatroom")
+	slog.Info(fmt.Sprintf("creating chatroom: %s", msg.ChatroomName))
 	if err := u.chatroomNoSQLRepoer.CreateChatroom(ctx, msg.ChatroomName, msg.InviteUsers); err != nil {
 		slog.Error("failed to create chatroom ", err)
 		return
@@ -172,8 +173,6 @@ func (u User) CreateChatroom(ctx context.Context, msg models.WSChatroomCreateMes
 		slog.Error("failed to enter chatroom ", err)
 		return
 	}
-
-	slog.Info("finishing create chatroom")
 }
 
 func (u User) UpdateChatroom(ctx context.Context, msg models.WSChatroomUpdateMessage) {
@@ -181,5 +180,39 @@ func (u User) UpdateChatroom(ctx context.Context, msg models.WSChatroomUpdateMes
 }
 
 func (u User) DeleteChatroom(ctx context.Context, msg models.WSChatroomDeleteMessage) {
-	// @todo implement
+	chatroomID, err := uuid.Parse(msg.ChatroomID)
+	if err != nil {
+		slog.Error("failed to parse uuid: ", err)
+		return
+	}
+
+	if models.MainChatUUID == chatroomID {
+		slog.Error("cannot delete main chat")
+		return
+	}
+
+	chatroomRepo, ok := u.chatroomRepos.Load(chatroomID)
+	if !ok {
+		slog.Error("you are not part of the chatroom repo or it does not exist")
+		return
+	}
+
+	if err := u.chatroomNoSQLRepoer.DeleteChatroom(ctx, chatroomID); err != nil {
+		slog.Error("failed to delete chatroom: ", err)
+		return
+	}
+
+	deleteMessage, err := json.Marshal(models.WSMessage{
+		ChatroomMessage: &models.ChatroomMessage{
+			Delete: &models.WSChatroomDeleteMessage{
+				ChatroomID: msg.ChatroomID,
+			},
+		},
+	})
+	if err != nil {
+		slog.Error("failed to marshal chatroom delete message: ", err)
+		return
+	}
+
+	chatroomRepo.(repo.ChatroomRepoer).DistributeMessage(deleteMessage)
 }
