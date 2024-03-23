@@ -22,6 +22,7 @@ type User struct {
 	userRepo            repo.UserRepoer
 	chatroomRepos       *sync.Map // map which key is the chat uuid and value is repo.ChatroomRepoer
 	chatroomNoSQLRepoer repo.ChatroomNoSQLRepoer
+	initialConnect      bool
 }
 
 func GetUserServicer(ctx context.Context, writeChan chan []byte, userData models.AuthUserData) (services.UserServicer, error) {
@@ -49,28 +50,30 @@ func GetUserServicer(ctx context.Context, writeChan chan []byte, userData models
 	return userService, nil
 }
 
-func (u User) EnterChatroom(ctx context.Context, chatroomName string) error {
-	if chatroomName == "" {
-		return errors.New("cannot enter empty chatroom name")
-	}
-
-	chatroomID, err := u.chatroomNoSQLRepoer.GetChatroomUUID(ctx, chatroomName)
-	if err != nil {
-		return err
-	}
-
-	slog.Info("chatroomID: ", chatroomID.String())
+func (u User) EnterChatroom(ctx context.Context, chatroomID uuid.UUID, addUser bool) error {
+	slog.Info("entering chatroomID: ", chatroomID.String())
 	enteredChatroom := chatroomRepo.GetChatroomRepoer(chatroomID)
 	u.chatroomRepos.Store(chatroomID, enteredChatroom)
 	if err := enteredChatroom.AddUser(u.user); err != nil {
 		return err
 	}
 
+	chatroomEntry, err := u.chatroomNoSQLRepoer.GetChatroomEntry(ctx, chatroomID)
+	if err != nil {
+		return errors.Wrap(err, "failed to get chatroom entry")
+	}
+
+	// @todo determine if users have actually been added to nosql entry
+	// If user connects the first time mainChat adds the user if it is not listed
+	if addUser {
+		u.chatroomNoSQLRepoer.AddUserToChatroom(ctx, chatroomID, u.user.ID)
+	}
+
 	msgRaw, err := json.Marshal(models.WSMessage{
 		ChatroomMessage: &models.ChatroomMessage{
 			Enter: &models.WSChatroomEnterMessage{
-				ChatroomName: chatroomName,
-				ChatroomID:   chatroomID.String(),
+				ChatroomName: chatroomEntry.Name,
+				ChatroomID:   chatroomEntry.ChatroomID.String(),
 			},
 		},
 	})
@@ -162,12 +165,13 @@ func (u User) RemoveUser() {
 // @todo consider just writing the error in write channel
 func (u User) CreateChatroom(ctx context.Context, msg models.WSChatroomCreateMessage) {
 	slog.Info(fmt.Sprintf("creating chatroom: %s", msg.ChatroomName))
-	if err := u.chatroomNoSQLRepoer.CreateChatroom(ctx, msg.ChatroomName, msg.InviteUsers); err != nil {
+	chatroomID, err := u.chatroomNoSQLRepoer.CreateChatroom(ctx, msg.ChatroomName, msg.InviteUsers)
+	if err != nil {
 		slog.Error("failed to create chatroom ", err)
 		return
 	}
 
-	if err := u.EnterChatroom(ctx, msg.ChatroomName); err != nil {
+	if err := u.EnterChatroom(ctx, chatroomID, true); err != nil {
 		slog.Error("failed to enter chatroom ", err)
 		return
 	}
@@ -253,4 +257,29 @@ func (u User) DeleteChatroom(ctx context.Context, msg models.WSChatroomDeleteMes
 	}
 
 	chatroomRepo.(repo.ChatroomRepoer).DistributeMessage(deleteMessage)
+}
+
+func (u User) InitialConnect(ctx context.Context) error {
+	chatroomIDs, err := u.chatroomNoSQLRepoer.GetUserConnectedChatrooms(ctx, u.user.ID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to find initial connects for user %s", u.user.ID)
+	}
+
+	var addUser bool
+	if len(chatroomIDs) == 0 {
+		slog.Info("no currently connected connecting to mainChat")
+		chatroomIDs = append(chatroomIDs, models.MainChatUUID)
+		addUser = true
+	}
+
+	for i := range chatroomIDs {
+		slog.Info(fmt.Sprintf("adding user to chatroom %s", chatroomIDs[i].String()))
+		if err := u.EnterChatroom(ctx, chatroomIDs[i], addUser); err != nil {
+			return errors.Wrapf(err, "failed to enter chatroom %s", chatroomIDs[i].String())
+		}
+	}
+
+	slog.Info("finished initial connect")
+
+	return nil
 }

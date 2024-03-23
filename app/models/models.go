@@ -81,8 +81,13 @@ type ChatroomLog struct {
 	UserName   string
 }
 
-// @todo standardize origin with prefix NoSQL
-type ChatroomLogMongo struct {
+type ChatroomEntry struct {
+	ChatroomID uuid.UUID
+	Name       string
+	IsActive   bool
+}
+
+type NoSQLChatroomLog struct {
 	ChatroomID primitive.Binary `bson:"chatroom_id"`
 	Timestamp  time.Time        `bson:"timestamp"`
 	Text       string           `bson:"text"`
@@ -94,6 +99,11 @@ type NoSQLChatroomEntry struct {
 	Name       string           `bson:"name"`
 	ChatroomID primitive.Binary `bson:"chatroom_id"`
 	IsActive   bool             `bson:"is_active"`
+}
+
+type NoSQLChatroomUserEntry struct {
+	ChatroomID primitive.Binary `bson:"chatroom_id"`
+	UserID     primitive.Binary `bson:"user_id"`
 }
 
 type SelectDBMessagesParams struct {
@@ -118,23 +128,31 @@ func StandardizeTime(t time.Time) time.Time {
 	return t.Round(time.Millisecond)
 }
 
-func (clm ChatroomLogMongo) ConvertToChatroomLog() ChatroomLog {
+func (nscl NoSQLChatroomLog) ConvertToChatroomLog() ChatroomLog {
 	return ChatroomLog{
-		ChatroomID: MongoUUIDToGoUUID(clm.ChatroomID),
-		UserID:     MongoUUIDToGoUUID(clm.UserID),
-		UserName:   clm.UserName,
-		Timestamp:  clm.Timestamp,
-		Text:       clm.Text,
+		ChatroomID: MongoUUIDToGoUUID(nscl.ChatroomID),
+		UserID:     MongoUUIDToGoUUID(nscl.UserID),
+		UserName:   nscl.UserName,
+		Timestamp:  nscl.Timestamp,
+		Text:       nscl.Text,
 	}
 }
 
-func (params InsertDBMessagesParams) ConvertToChatroomLogMongo() ChatroomLogMongo {
-	return ChatroomLogMongo{
+func (params InsertDBMessagesParams) ConvertToNoSQLChatroomLog() NoSQLChatroomLog {
+	return NoSQLChatroomLog{
 		ChatroomID: primitive.Binary{Subtype: 0x04, Data: []byte(params.ChatroomID[:])},
 		UserID:     primitive.Binary{Subtype: 0x04, Data: []byte(params.UserID[:])},
 		UserName:   params.UserName,
 		Text:       params.Text,
 		Timestamp:  params.Timestamp,
+	}
+}
+
+func (nsce NoSQLChatroomEntry) ConvertToChatroomEntry() ChatroomEntry {
+	return ChatroomEntry{
+		ChatroomID: MongoUUIDToGoUUID(nsce.ChatroomID),
+		Name:       nsce.Name,
+		IsActive:   nsce.IsActive,
 	}
 }
 
