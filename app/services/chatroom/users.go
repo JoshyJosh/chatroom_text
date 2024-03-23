@@ -175,8 +175,48 @@ func (u User) CreateChatroom(ctx context.Context, msg models.WSChatroomCreateMes
 	}
 }
 
+// @todo implement adding and removing users.
 func (u User) UpdateChatroom(ctx context.Context, msg models.WSChatroomUpdateMessage) {
-	// @todo implement
+	chatroomID, err := uuid.Parse(msg.ChatroomID)
+	if err != nil {
+		slog.Error("failed to parse uuid: ", err)
+		return
+	}
+
+	if models.MainChatUUID == chatroomID {
+		slog.Error("cannot update main chat")
+		return
+	}
+
+	if msg.NewChatroomName == "" {
+		slog.Error("cannot set empty name for chatroom")
+	}
+
+	if err := u.chatroomNoSQLRepoer.UpdateChatroom(ctx, chatroomID, msg.NewChatroomName, nil, nil); err != nil {
+		slog.Error("failed to update chatroom: ", err)
+		return
+	}
+
+	updateMessage, err := json.Marshal(models.WSMessage{
+		ChatroomMessage: &models.ChatroomMessage{
+			Update: &models.WSChatroomUpdateMessage{
+				ChatroomID:      msg.ChatroomID,
+				NewChatroomName: msg.NewChatroomName,
+			},
+		},
+	})
+	if err != nil {
+		slog.Error("failed to marshal chatroom update message: ", err)
+		return
+	}
+
+	chatroomRepo, ok := u.chatroomRepos.Load(chatroomID)
+	if !ok {
+		slog.Error("chatroom repo with chatroomID does not exist: %s", chatroomID.String())
+		return
+	}
+
+	chatroomRepo.(repo.ChatroomRepoer).DistributeMessage(updateMessage)
 }
 
 func (u User) DeleteChatroom(ctx context.Context, msg models.WSChatroomDeleteMessage) {
