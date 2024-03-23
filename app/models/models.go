@@ -35,9 +35,10 @@ type WSChatroomCreateMessage struct {
 }
 
 type WSChatroomUpdateMessage struct {
-	ChatroomName string   `json:"chatroomName"`
-	InviteUsers  []string `json:"inviteUsers"`
-	RemoveUsers  []string `json:"removeUsers"`
+	ChatroomID      string   `json:"chatroomID"`
+	NewChatroomName string   `json:"newChatroomName"`
+	InviteUsers     []string `json:"inviteUsers"`
+	RemoveUsers     []string `json:"removeUsers"`
 }
 
 type WSChatroomDeleteMessage struct {

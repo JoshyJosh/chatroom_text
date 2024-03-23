@@ -46,16 +46,22 @@ WS.onmessage = (event) => {
             chatroomP.addEventListener("click", selectChatroomBtn);
             chatroomLi.appendChild(chatroomP);
 
-            let chatroomDeleteBtn = document.createElement("button");
-            chatroomDeleteBtn.textContent = "Delete";
-            chatroomDeleteBtn.addEventListener("click", deleteChatroomBtn);
-            chatroomLi.appendChild(chatroomDeleteBtn);
+            if (msgData.chatroom.enter.chatroomName !== "mainChat") {
+                let chatroomDeleteBtn = document.createElement("button");
+                chatroomDeleteBtn.textContent = "Delete";
+                chatroomDeleteBtn.addEventListener("click", deleteChatroomBtn);
+                chatroomLi.appendChild(chatroomDeleteBtn);
+
+                let chatroomUpdateBtn = document.createElement("button");
+                chatroomUpdateBtn.textContent = "Rename";
+                chatroomUpdateBtn.addEventListener("click", updateChatroomBtn);
+                chatroomLi.appendChild(chatroomUpdateBtn);
+            }
 
             chatroomSelectList.appendChild(chatroomLi);
 
             selectChatroom(chatroomID)
         } else if (msgData.chatroom.hasOwnProperty("delete")) {
-            // @todo grey out button
             let chatroomID = msgData.chatroom.delete.chatroomID; 
             delete chatroomMap[chatroomID];
 
@@ -70,6 +76,19 @@ WS.onmessage = (event) => {
 
             if (currentChatroomID === chatroomID) {
                 currentChatNameTitle.innerText += " (archived)";
+            }
+        } else if (msgData.chatroom.hasOwnProperty("update")) {
+            let chatroomID = msgData.chatroom.update.chatroomID;
+            let newChatroomName = msgData.chatroom.update.newChatroomName;
+            chatroomMap[chatroomID].name = newChatroomName;
+
+            // @todo make better traversal method
+            for (let i = 0; i < chatroomSelectList.childNodes.length; i++) {
+                let childNode = chatroomSelectList.childNodes[i];
+
+                if (childNode.hasAttribute("chatroomid") && childNode.getAttribute("chatroomid") === chatroomID) {
+                    childNode.querySelector("p").innerText = newChatroomName;
+                }
             }
         }
     }
@@ -107,6 +126,12 @@ chatInput.focus();
 function createChatMessage(event) {
     if ((event.inputType === "insertLineBreak" && event.originalTarget === chatroomCreateInput) || event.type === "click") {
         let chatroomName = chatroomCreateInput.value;
+        if (chatroomName === "") {
+            // @todo make better error propagation
+            alert("cannot set empty chatroomName");
+            return;
+        }
+
         WS.send(`{"chatroom":{"create":{"chatroomName":"${chatroomName}"}}}`);
         chatroomCreateInput.value = "";
 
@@ -171,3 +196,41 @@ function deleteChatroomBtn (event) {
 function deleteChatroom (chatroomID) {
     WS.send(`{"chatroom":{"delete":{"chatroomID":"${chatroomID}"}}}`);
 }
+
+function updateChatroomBtn(event) {
+    var chatroomID = event.originalTarget.parentNode.getAttribute("chatroomid");
+
+    // Create form element
+    var form = document.createElement('form');
+    form.classList.add('popup');
+    
+    // Create input element
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'Enter new chatroom name';
+    
+    // Create submit button
+    var submitButton = document.createElement('button');
+    submitButton.type = 'submit';
+    submitButton.textContent = 'Submit';
+    
+    // Append input and submit button to form
+    form.appendChild(input);
+    form.appendChild(submitButton);
+    
+    // Append form to body
+    document.body.appendChild(form);
+    
+    // Show the popup
+    form.style.display = 'block';
+    
+    // Prevent default form submission behavior
+    form.addEventListener('submit', function(event) {
+      event.preventDefault();
+      let newChatroomName = input.value;
+
+      WS.send(`{"chatroom":{"update":{"chatroomID":"${chatroomID}","newChatroomName":"${newChatroomName}"}}}`);
+      form.remove(); // Remove the popup after submission
+    });
+  }
+

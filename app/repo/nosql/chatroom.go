@@ -4,6 +4,7 @@ import (
 	"chatroom_text/models"
 	"chatroom_text/repo"
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -110,8 +111,21 @@ func (m MongoRepo) CreateChatroom(ctx context.Context, name string, addUsers []s
 }
 
 // Update chatroom with add remove user IDs.
-func (m MongoRepo) UpdateChatroom(ctx context.Context, name string, addUsers []string, removeUsers []string) error {
-	return errors.New("not implemented yet")
+func (m MongoRepo) UpdateChatroom(ctx context.Context, chatroomID uuid.UUID, newName string, addUsers []string, removeUsers []string) error {
+	collection := m.client.Database(database, nil).Collection("chatroom_list")
+
+	filter := bson.D{{Key: "chatroom_id", Value: models.GoUUIDToMongoUUID(chatroomID)}}
+	update := bson.D{{Key: "$set", Value: bson.D{{Key: "name", Value: newName}}}}
+	res, err := collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete chatroom")
+	}
+
+	if res.MatchedCount == 0 {
+		return fmt.Errorf("failed to match chatroom id %s for update", chatroomID)
+	}
+
+	return nil
 }
 
 // Delete chatroom.
