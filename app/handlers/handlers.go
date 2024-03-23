@@ -158,7 +158,7 @@ func (userHandle) ConnectWebSocket(c *gin.Context) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := userService.EnterChatroom(ctx, ""); err != nil {
+		if err := userService.EnterChatroom(ctx, models.MainChatName); err != nil {
 			logger.Error("failed to enter chatroom", err)
 			cancel()
 		}
