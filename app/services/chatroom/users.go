@@ -50,15 +50,13 @@ func GetUserServicer(ctx context.Context, writeChan chan []byte, userData models
 }
 
 func (u User) EnterChatroom(ctx context.Context, chatroomName string) error {
-	chatroomID := models.MainChatUUID
-	if chatroomName != "" {
-		var err error
-		chatroomID, err = u.chatroomNoSQLRepoer.GetChatroomUUID(ctx, chatroomName)
-		if err != nil {
-			return err
-		}
-	} else {
-		chatroomName = "mainChat"
+	if chatroomName == "" {
+		return errors.New("cannot enter empty chatroom name")
+	}
+
+	chatroomID, err := u.chatroomNoSQLRepoer.GetChatroomUUID(ctx, chatroomName)
+	if err != nil {
+		return err
 	}
 
 	slog.Info("chatroomID: ", chatroomID.String())

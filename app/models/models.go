@@ -111,6 +111,8 @@ type InsertDBMessagesParams struct {
 
 var MainChatUUID uuid.UUID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
+const MainChatName = "mainChat"
+
 // StandardizeTime rounds time.Time to milliseconds due to mongos Date type.
 func StandardizeTime(t time.Time) time.Time {
 	return t.Round(time.Millisecond)
