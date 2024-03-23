@@ -223,6 +223,9 @@ function updateChatroomBtn(event) {
     
     // Show the popup
     form.style.display = 'block';
+
+    // Focus to the text input
+    input.focus();
     
     // Prevent default form submission behavior
     form.addEventListener('submit', function(event) {
