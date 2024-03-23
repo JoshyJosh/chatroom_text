@@ -9,3 +9,7 @@ db.chatroom_list.insertOne({
     "chatroom_id": UUID("00000000-0000-0000-0000-000000000001"),
     "is_active": true
 })
+
+db.createCollection("chatroom_users")
+
+db.chatroom_name.createIndex({"chatroom_id": 1, "user_id": 1}, {unique: true})

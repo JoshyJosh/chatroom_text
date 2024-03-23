@@ -1,3 +1,4 @@
+.vscode/
 vendor/
 cert.pem
 key.pem

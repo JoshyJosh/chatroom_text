@@ -52,7 +52,7 @@ func (m MongoRepo) SelectChatroomLogs(ctx context.Context, params models.SelectD
 
 	var results []models.ChatroomLog
 	for cursor.Next(ctx) {
-		var result models.ChatroomLogMongo
+		var result models.NoSQLChatroomLog
 		if err := cursor.Decode(&result); err != nil {
 			return nil, errors.Wrap(err, "failed to decode chatroom logs")
 		}
@@ -70,14 +70,14 @@ func (m MongoRepo) SelectChatroomLogs(ctx context.Context, params models.SelectD
 func (m MongoRepo) InsertChatroomLogs(ctx context.Context, params models.InsertDBMessagesParams) error {
 	collection := m.client.Database(database, nil).Collection("chat_logs")
 
-	if _, err := collection.InsertOne(ctx, params.ConvertToChatroomLogMongo()); err != nil {
+	if _, err := collection.InsertOne(ctx, params.ConvertToNoSQLChatroomLog()); err != nil {
 		return errors.Wrap(err, "failed to insert chatroom message")
 	}
 
 	return nil
 }
 
-func (m MongoRepo) CreateChatroom(ctx context.Context, name string, addUsers []string) error {
+func (m MongoRepo) CreateChatroom(ctx context.Context, name string, addUsers []string) (uuid.UUID, error) {
 
 	chatroomUUID := uuid.New()
 
@@ -97,7 +97,11 @@ func (m MongoRepo) CreateChatroom(ctx context.Context, name string, addUsers []s
 		if err != nil {
 			if mongo.IsDuplicateKeyError(err) {
 				if strings.Contains(err.Error(), "name") {
-					return errors.Wrapf(err, "failed to create chatroom, name \"%s\" already taken", name)
+					return chatroomUUID, errors.Wrapf(err, "failed to create chatroom, name \"%s\" already taken", name)
+				}
+
+				if strings.Contains(err.Error(), "chatroom_id") {
+					return chatroomUUID, errors.Wrapf(err, "failed to create chatroom, chatroom_id \"%s\" already taken", chatroomUUID.String())
 				}
 			}
 
@@ -107,7 +111,7 @@ func (m MongoRepo) CreateChatroom(ctx context.Context, name string, addUsers []s
 		break
 	}
 
-	return nil
+	return chatroomUUID, nil
 }
 
 // Update chatroom with add remove user IDs.
@@ -141,19 +145,63 @@ func (m MongoRepo) DeleteChatroom(ctx context.Context, chatroomID uuid.UUID) err
 }
 
 // Delete chatroom.
-func (m MongoRepo) GetChatroomUUID(ctx context.Context, name string) (uuid.UUID, error) {
-	var chatroomID uuid.UUID
-
+func (m MongoRepo) GetChatroomEntry(ctx context.Context, chatroomID uuid.UUID) (models.ChatroomEntry, error) {
 	collection := m.client.Database(database, nil).Collection("chatroom_list")
 
 	filter := bson.D{{
-		Key:   "name",
-		Value: name,
+		Key:   "chatroom_id",
+		Value: models.GoUUIDToMongoUUID(chatroomID),
 	}}
-	var chatroomName models.NoSQLChatroomEntry
-	if err := collection.FindOne(ctx, filter).Decode(&chatroomName); err != nil {
-		return chatroomID, errors.Wrapf(err, "failed to find chatroom with name: %s", name)
+
+	var noSQLChatroomEntry models.NoSQLChatroomEntry
+	var chatroomEntry models.ChatroomEntry
+	if err := collection.FindOne(ctx, filter).Decode(&noSQLChatroomEntry); err != nil {
+		return chatroomEntry, errors.Wrapf(err, "failed to find chatroom with id: %s", chatroomID.String())
 	}
 
-	return models.MongoUUIDToGoUUID(chatroomName.ChatroomID), nil
+	return noSQLChatroomEntry.ConvertToChatroomEntry(), nil
+}
+
+// @todo make parameters for input arguments
+func (m MongoRepo) AddUserToChatroom(ctx context.Context, chatroomID uuid.UUID, userID uuid.UUID) error {
+	collection := m.client.Database(database, nil).Collection("chatroom_users")
+
+	insert := models.NoSQLChatroomUserEntry{
+		ChatroomID: models.GoUUIDToMongoUUID(chatroomID),
+		UserID:     models.GoUUIDToMongoUUID(userID),
+	}
+	if _, err := collection.InsertOne(ctx, insert); err != nil {
+		return errors.Wrapf(err, "failed to insert user %s to chatroom %s", userID, chatroomID)
+	}
+
+	return nil
+}
+
+func (m MongoRepo) GetUserConnectedChatrooms(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	collection := m.client.Database(database, nil).Collection("chatroom_users")
+
+	filter := bson.D{{
+		Key:   "user_id",
+		Value: models.GoUUIDToMongoUUID(userID),
+	}}
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find chatroom users")
+	}
+
+	var chatroomIDs []uuid.UUID
+	for cursor.Next(ctx) {
+		var result models.NoSQLChatroomUserEntry
+		if err := cursor.Decode(&result); err != nil {
+			return nil, errors.Wrap(err, "failed to decode chatroom users")
+		}
+
+		chatroomIDs = append(chatroomIDs, models.MongoUUIDToGoUUID(result.ChatroomID))
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, errors.Wrap(err, "failed to read chatroom users from cursor")
+	}
+
+	return chatroomIDs, nil
 }
