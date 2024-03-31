@@ -106,6 +106,7 @@ type NoSQLChatroomUserEntry struct {
 	UserID     primitive.Binary `bson:"user_id"`
 }
 
+// @todo actuall prepare use for TimestampFrom
 type SelectDBMessagesParams struct {
 	TimestampFrom time.Time
 	ChatroomID    uuid.UUID

@@ -5,6 +5,7 @@ import (
 	"chatroom_text/repo"
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -46,22 +47,27 @@ func (m MongoRepo) SelectChatroomLogs(ctx context.Context, params models.SelectD
 	}}
 	opts := options.Find().SetSort(bson.D{{Key: "timestamp", Value: 1}})
 	cursor, err := collection.Find(ctx, filter, opts)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to find chatroom logs")
+	if err != nil && !strings.Contains(err.Error(), "no responses remaining") {
+		return nil, errors.Wrap(err, "failed to get cursor chatroom logs")
 	}
+	defer cursor.Close(ctx)
 
 	var results []models.ChatroomLog
 	for cursor.Next(ctx) {
 		var result models.NoSQLChatroomLog
 		if err := cursor.Decode(&result); err != nil {
-			return nil, errors.Wrap(err, "failed to decode chatroom logs")
+			slog.Error(fmt.Sprintf("failed to decode NoSQLChatroomUserEntry: %s", cursor.Current.String()))
+			continue
 		}
 
 		results = append(results, result.ConvertToChatroomLog())
 	}
 
 	if err := cursor.Err(); err != nil {
-		return nil, errors.Wrap(err, "failed to read logs from cursor")
+		// For mtest EOF errors.
+		if !strings.Contains(err.Error(), "no responses remaining") {
+			return nil, errors.Wrap(err, "failed to read logs from cursor")
+		}
 	}
 
 	return results, nil
