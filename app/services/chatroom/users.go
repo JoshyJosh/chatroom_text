@@ -22,7 +22,6 @@ type User struct {
 	userRepo            repo.UserRepoer
 	chatroomRepos       *sync.Map // map which key is the chat uuid and value is repo.ChatroomRepoer
 	chatroomNoSQLRepoer repo.ChatroomNoSQLRepoer
-	initialConnect      bool
 }
 
 func GetUserServicer(ctx context.Context, writeChan chan []byte, userData models.AuthUserData) (services.UserServicer, error) {
@@ -198,6 +197,7 @@ func (u User) UpdateChatroom(ctx context.Context, msg models.WSChatroomUpdateMes
 
 	if msg.NewChatroomName == "" {
 		slog.Error("cannot set empty name for chatroom")
+		return
 	}
 
 	if err := u.chatroomNoSQLRepoer.UpdateChatroom(ctx, chatroomID, msg.NewChatroomName, nil, nil); err != nil {
