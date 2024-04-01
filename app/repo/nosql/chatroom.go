@@ -83,12 +83,11 @@ func (m MongoRepo) InsertChatroomLogs(ctx context.Context, params models.InsertD
 	return nil
 }
 
-func (m MongoRepo) CreateChatroom(ctx context.Context, name string, addUsers []string) (uuid.UUID, error) {
-
+func (m MongoRepo) CreateChatroom(ctx context.Context, params models.CreateChatroomParams) (uuid.UUID, error) {
 	chatroomUUID := uuid.New()
 
 	insertDoc := models.NoSQLChatroomEntry{
-		Name:       name,
+		Name:       params.ChatroomName,
 		ChatroomID: models.GoUUIDToMongoUUID(chatroomUUID),
 		IsActive:   true,
 	}
@@ -103,15 +102,22 @@ func (m MongoRepo) CreateChatroom(ctx context.Context, name string, addUsers []s
 		if err != nil {
 			if mongo.IsDuplicateKeyError(err) {
 				if strings.Contains(err.Error(), "name") {
-					return chatroomUUID, errors.Wrapf(err, "failed to create chatroom, name \"%s\" already taken", name)
+					return chatroomUUID, errors.Wrapf(err, "failed to create chatroom, name \"%s\" already taken", params.ChatroomName)
 				}
 
+				// Retry with different uuid.
 				if strings.Contains(err.Error(), "chatroom_id") {
-					return chatroomUUID, errors.Wrapf(err, "failed to create chatroom, chatroom_id \"%s\" already taken", chatroomUUID.String())
+					chatroomUUID = uuid.New()
+					continue
 				}
 			}
 
-			continue
+			// For mtest EOF errors.
+			if strings.Contains(err.Error(), "no responses remaining") {
+				break
+			}
+
+			return chatroomUUID, errors.Wrap(err, "failed to create chatroom")
 		}
 
 		break

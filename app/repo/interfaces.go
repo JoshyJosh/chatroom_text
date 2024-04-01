@@ -29,7 +29,7 @@ type ChatroomNoSQLRepoer interface {
 	SelectChatroomLogs(ctx context.Context, params models.SelectDBMessagesParams) ([]models.ChatroomLog, error)
 	InsertChatroomLogs(ctx context.Context, params models.InsertDBMessagesParams) error
 	// Create chatroom with initially invited user IDs.
-	CreateChatroom(ctx context.Context, name string, addUsers []string) (uuid.UUID, error)
+	CreateChatroom(ctx context.Context, params models.CreateChatroomParams) (uuid.UUID, error)
 	// Update chatroom with add remove user IDs.
 	UpdateChatroom(ctx context.Context, chatroomID uuid.UUID, newName string, addUsers []string, removeUsers []string) error
 	// Delete chatroom.

@@ -120,6 +120,11 @@ type InsertDBMessagesParams struct {
 	Text       string
 }
 
+type CreateChatroomParams struct {
+	ChatroomName string
+	AddUsers     []string
+}
+
 var MainChatUUID uuid.UUID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
 const MainChatName = "mainChat"
