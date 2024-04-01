@@ -15,9 +15,7 @@ import (
 
 func TestSelectChatroomLogs(t *testing.T) {
 	ctx := context.Background()
-
 	opts := mtest.NewOptions().ClientType(mtest.Mock)
-
 	mt := mtest.New(t, opts)
 
 	mt.Run("Success: Successfuly select chatroom logs", func(mt *mtest.T) {
@@ -216,4 +214,66 @@ func TestSelectChatroomLogs(t *testing.T) {
 
 		a.Error(err)
 	})
+}
+
+// func InitializeChatroomList(mt *mtest.T) {
+// 	idx, err := mt.Coll.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+// 		{
+// 			Keys:    bson.D{bson.E{"chatroom_id", int32(1)}},
+// 			Options: options.Index().SetUnique(true),
+// 		},
+// 		{
+// 			Keys:    bson.D{bson.E{"chatroom_name", int32(1)}},
+// 			Options: options.Index().SetUnique(true),
+// 		},
+// 	})
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// }
+
+func TestCreateChatroom(t *testing.T) {
+	ctx := context.Background()
+
+	// opts := mtest.NewOptions().ClientType(mtest.Mock).DatabaseName("chatroom").CollectionName("chatroom_list")
+	opts := mtest.NewOptions().ClientType(mtest.Mock)
+	mt := mtest.New(t, opts)
+
+	mt.RunOpts("Success: Successfuly create chatroom", opts, func(mt *mtest.T) {
+		// InitializeChatroomList(mt)
+
+		a := assert.New(t)
+		mockMongoRepo := MongoRepo{
+			client: mt.Client,
+		}
+
+		params := models.CreateChatroomParams{ChatroomName: "test chatroom"}
+		chatroom1UUID, err := mockMongoRepo.CreateChatroom(ctx, params)
+		a.NoError(err)
+
+		params = models.CreateChatroomParams{ChatroomName: "test chatroom 2"}
+		chatroom2UUID, err := mockMongoRepo.CreateChatroom(ctx, params)
+		a.NoError(err)
+
+		a.NotEqual(chatroom1UUID, chatroom2UUID)
+	})
+
+	// mtest currently does not support writing indexes.
+	// mt.RunOpts("Failure: Overlapping names", opts, func(mt *mtest.T) {
+	// 	mt.Run("verify results", func(mt *mtest.T) {
+	// 		InitializeChatroomList(mt)
+
+	// 		a := assert.New(t)
+	// 		mockMongoRepo := MongoRepo{
+	// 			client: mt.Client,
+	// 		}
+
+	// 		params := models.CreateChatroomParams{ChatroomName: "test chatroom"}
+	// 		_, err := mockMongoRepo.CreateChatroom(ctx, params)
+	// 		a.NoError(err)
+
+	// 		_, err = mockMongoRepo.CreateChatroom(ctx, params)
+	// 		a.Error(err)
+	// 	})
+	// })
 }

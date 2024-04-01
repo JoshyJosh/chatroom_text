@@ -165,7 +165,13 @@ func (u User) RemoveUser() {
 // @todo consider just writing the error in write channel
 func (u User) CreateChatroom(ctx context.Context, msg models.WSChatroomCreateMessage) {
 	slog.Info(fmt.Sprintf("creating chatroom: %s", msg.ChatroomName))
-	chatroomID, err := u.chatroomNoSQLRepoer.CreateChatroom(ctx, msg.ChatroomName, msg.InviteUsers)
+	chatroomID, err := u.chatroomNoSQLRepoer.CreateChatroom(
+		ctx,
+		models.CreateChatroomParams{
+			ChatroomName: msg.ChatroomName,
+			AddUsers:     msg.InviteUsers,
+		},
+	)
 	if err != nil {
 		slog.Error("failed to create chatroom ", err)
 		return
