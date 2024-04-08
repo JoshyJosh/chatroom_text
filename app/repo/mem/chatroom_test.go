@@ -89,10 +89,14 @@ func TestChatroomRosterUserDistribution(t *testing.T) {
 	assert.Equal(2, mapLen, "expected one entry in userMap")
 
 	curTime := time.Now()
-	msg := models.WSTextMessage{
-		Text:      "test message",
-		Timestamp: curTime,
-		UserID:    user1.ID.String(),
+
+	msg := models.WSMessage{
+		TextMessage: &models.WSTextMessage{
+			Text:       "test message",
+			Timestamp:  curTime,
+			UserID:     user1.ID.String(),
+			ChatroomID: models.MainChatUUID.String(),
+		},
 	}
 
 	msgRaw, err := json.Marshal(msg)
@@ -121,7 +125,8 @@ func TestChatroomRosterUserDistribution(t *testing.T) {
 			user2Msg.Write(m)
 		}
 	}()
-	testChatroomRoster.ReceiveMessage(msg)
+
+	testChatroomRoster.ReceiveMessage(*msg.TextMessage)
 
 	close(user1.WriteChan)
 	close(user2.WriteChan)

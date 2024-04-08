@@ -109,7 +109,7 @@ func TestSuccessfullyEnterMainChatroom(t *testing.T) {
 	wg.Wait()
 
 	expectedMessages := [][]byte{
-		[]byte(`{"chatroom":{"enter":{"chatroomName":"","chatroomID":"00000000-0000-0000-0000-000000000000"}}}`),
+		[]byte(fmt.Sprintf(`{"chatroom":{"enter":{"chatroomName":"","chatroomID":"%s"}}}`, models.MainChatUUID.String())),
 		[]byte(`{"text":{"msg":"entered chat","timestamp":"","userID":"6c665468-6fc4-487e-9a5a-1a4c271ec698","userName":"testuser","chatroomID":"00000000-0000-0000-0000-000000000001"}}`),
 	}
 
