@@ -13,7 +13,14 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 )
 
+func setEnvs(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://mongodb:27017")
+	t.Setenv("MONGODB_DB", "chatroom")
+	InitAddr()
+}
+
 func TestSelectChatroomLogs(t *testing.T) {
+	setEnvs(t)
 	ctx := context.Background()
 	opts := mtest.NewOptions().ClientType(mtest.Mock)
 	mt := mtest.New(t, opts)
@@ -233,6 +240,7 @@ func TestSelectChatroomLogs(t *testing.T) {
 // }
 
 func TestCreateChatroom(t *testing.T) {
+	setEnvs(t)
 	ctx := context.Background()
 
 	// opts := mtest.NewOptions().ClientType(mtest.Mock).DatabaseName("chatroom").CollectionName("chatroom_list")

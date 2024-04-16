@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -20,10 +21,19 @@ type MongoRepo struct {
 	client *mongo.Client
 }
 
-const (
-	uri      string = "mongodb://mongodb:27017"
-	database string = "chatroom"
-)
+var uri, database string
+
+func InitAddr() {
+	uri = os.Getenv("MONGODB_URI")
+	if uri == "" {
+		panic("missing MONGODB_URI env variable")
+	}
+
+	database = os.Getenv("MONGODB_DB")
+	if uri == "" {
+		panic("missing MONGODB_DB env variable")
+	}
+}
 
 func GetChatroomNoSQLRepoer(ctx context.Context) (repo.ChatroomNoSQLRepoer, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)

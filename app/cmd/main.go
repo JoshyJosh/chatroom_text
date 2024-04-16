@@ -10,6 +10,7 @@ import (
 
 	"chatroom_text/internal/handlers"
 	"chatroom_text/internal/middleware"
+	"chatroom_text/internal/repo/nosql"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/exp/slog"
@@ -29,6 +30,8 @@ func main() {
 			},
 		},
 	))
+
+	nosql.InitAddr()
 
 	logger.Info("starting")
 	defer logger.Info("stopping")
