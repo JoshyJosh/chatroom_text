@@ -1,11 +1,19 @@
 pipeline {
-    agent {
-        docker { image 'golang:1.22' }
+    agent any 
+    environment {
+        BUILDERIMAGE = "builder-image"
     }
+
     stages {
-        stage('Test') {
+        stage('Build base stage') {
             steps {
-                sh 'go version'
+                sh 'docker build -t ${BUILDERIMAGE} --target builder .'
+            }
+        }
+
+        stage('Run tests') {
+            steps {
+                sh 'docker run --rm ${BUILDERIMAGE} sh -c "go test ./..."'
             }
         }
     }
