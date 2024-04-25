@@ -1,11 +1,11 @@
 package chatroom
 
 import (
-	"chatroom_text/models"
-	"chatroom_text/repo"
-	chatroomRepo "chatroom_text/repo/mem"
-	chatroomNoSQL "chatroom_text/repo/nosql"
-	services "chatroom_text/services"
+	"chatroom_text/internal/models"
+	"chatroom_text/internal/repo"
+	chatroomRepo "chatroom_text/internal/repo/mem"
+	chatroomNoSQL "chatroom_text/internal/repo/nosql"
+	services "chatroom_text/internal/services"
 	"context"
 	"encoding/json"
 	"fmt"

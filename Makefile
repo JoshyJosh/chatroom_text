@@ -7,7 +7,7 @@ run:
 	(cd app && go run cmd/main.go) && cd ..
 
 test:
-	(cd app && go test ./...) && cd ..
+	(cd app && go test ./... --count 1 --race) && cd ..
 
 up:
 	docker compose up -d $(filter-out $@,$(MAKECMDGOALS))

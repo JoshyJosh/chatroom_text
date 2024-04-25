@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"chatroom_text/models"
+	"chatroom_text/internal/models"
 	"context"
 	"fmt"
 	"net/http"

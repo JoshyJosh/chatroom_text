@@ -1,7 +1,7 @@
 package nosql
 
 import (
-	"chatroom_text/models"
+	"chatroom_text/internal/models"
 	"context"
 	"testing"
 	"time"

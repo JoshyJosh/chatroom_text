@@ -2,7 +2,7 @@ package chatroom
 
 import (
 	"bytes"
-	"chatroom_text/models"
+	"chatroom_text/internal/models"
 	"context"
 	"errors"
 	"fmt"

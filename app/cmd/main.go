@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"chatroom_text/handlers"
-	"chatroom_text/middleware"
+	"chatroom_text/internal/handlers"
+	"chatroom_text/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/exp/slog"

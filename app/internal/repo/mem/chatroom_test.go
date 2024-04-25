@@ -2,7 +2,7 @@ package mem
 
 import (
 	"bytes"
-	"chatroom_text/models"
+	"chatroom_text/internal/models"
 	"encoding/json"
 	"errors"
 	"fmt"

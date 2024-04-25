@@ -1,7 +1,7 @@
 package services
 
 import (
-	"chatroom_text/models"
+	"chatroom_text/internal/models"
 	"context"
 
 	"github.com/google/uuid"

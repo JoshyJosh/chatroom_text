@@ -1,8 +1,8 @@
 package mem
 
 import (
-	"chatroom_text/models"
-	"chatroom_text/repo"
+	"chatroom_text/internal/models"
+	"chatroom_text/internal/repo"
 	"fmt"
 	"sync"
 

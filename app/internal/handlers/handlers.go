@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"chatroom_text/middleware"
-	"chatroom_text/models"
-	"chatroom_text/services"
-	"chatroom_text/services/chatroom"
+	"chatroom_text/internal/middleware"
+	"chatroom_text/internal/models"
+	"chatroom_text/internal/services"
+	"chatroom_text/internal/services/chatroom"
 	"context"
 	"fmt"
 	"net/http"
