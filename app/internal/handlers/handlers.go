@@ -6,6 +6,7 @@ import (
 	"chatroom_text/internal/services"
 	"chatroom_text/internal/services/chatroom"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -154,6 +155,12 @@ func (userHandle) ConnectWebSocket(c *gin.Context) {
 		}
 	}()
 
+	// Start TextMessageListener
+	wg.Add(1)
+	go func() {
+		userService.ListenForMessages(ctx)
+	}()
+
 	// entering main chat
 	wg.Add(1)
 	go func() {
@@ -216,7 +223,15 @@ func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
 
 		switch {
 		case msg.TextMessage != nil:
-			u.userService.ReadMessage(ctx, *msg.TextMessage)
+			// @todo consider not changing conversions
+			var msgBytes models.WSTextMessageBytes
+			var err error
+			msgBytes, err = json.Marshal(msg.TextMessage)
+			if err != nil {
+				slog.Error("failed to marshal text message: %s", err)
+				continue
+			}
+			u.userService.ReceiveMessage(msgBytes)
 		case msg.ChatroomMessage != nil:
 			switch {
 			case msg.ChatroomMessage.Create != nil:

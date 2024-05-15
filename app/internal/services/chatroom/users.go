@@ -3,8 +3,8 @@ package chatroom
 import (
 	"chatroom_text/internal/models"
 	"chatroom_text/internal/repo"
-	chatroomRepo "chatroom_text/internal/repo/mem"
 	chatroomNoSQL "chatroom_text/internal/repo/nosql"
+	"chatroom_text/internal/repo/rabbitmq"
 	services "chatroom_text/internal/services"
 	"context"
 	"encoding/json"
@@ -19,9 +19,8 @@ import (
 
 type User struct {
 	user                models.User
-	userRepo            repo.UserRepoer
-	chatroomRepos       *sync.Map // map which key is the chat uuid and value is repo.ChatroomRepoer
-	chatroomNoSQLRepoer repo.ChatroomNoSQLRepoer
+	messageBroker       repo.ChatroomMessageBroker
+	chatroomNoSQLRepoer repo.ChatroomLogger
 }
 
 func GetUserServicer(ctx context.Context, writeChan chan []byte, userData models.AuthUserData) (services.UserServicer, error) {
@@ -30,30 +29,35 @@ func GetUserServicer(ctx context.Context, writeChan chan []byte, userData models
 		return nil, errors.Wrap(err, "failed to get logger for user servicer")
 	}
 
-	userService := User{
-		userRepo:            chatroomRepo.GetUserRepoer(),
-		chatroomNoSQLRepoer: chatroomNoSQLRepoer,
-		chatroomRepos:       &sync.Map{},
-	}
-
-	userService.user = models.User{
+	user := models.User{
 		WriteChan: writeChan,
 		Name:      userData.Name,
 		ID:        userData.ID,
 	}
 
-	if err := userService.userRepo.AddUser(userService.user); err != nil {
-		return nil, err
+	// @todo redefine to make separate entrances... Makes sense
+	chatroomMessageBroker, err := rabbitmq.GetChatroomMessageBroker(user)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get chatroom message broker")
 	}
+
+	userService := User{
+		messageBroker:       chatroomMessageBroker,
+		chatroomNoSQLRepoer: chatroomNoSQLRepoer,
+		user:                user,
+	}
+
+	// if err := userService.messageBroker.AddUser(userService.user); err != nil {
+	// 	return nil, err
+	// }
 
 	return userService, nil
 }
 
 func (u User) EnterChatroom(ctx context.Context, chatroomID uuid.UUID, addUser bool) error {
 	slog.Info("entering chatroomID: ", chatroomID.String())
-	enteredChatroom := chatroomRepo.GetChatroomRepoer(chatroomID)
-	u.chatroomRepos.Store(chatroomID, enteredChatroom)
-	if err := enteredChatroom.AddUser(u.user); err != nil {
+
+	if err := u.messageBroker.AddUser(chatroomID); err != nil {
 		return err
 	}
 
@@ -80,7 +84,7 @@ func (u User) EnterChatroom(ctx context.Context, chatroomID uuid.UUID, addUser b
 		return errors.Wrap(err, "failed to marshal chatroom entry message")
 	}
 
-	u.WriteMessage(msgRaw)
+	u.ReceiveMessage(msgRaw)
 
 	logs, err := u.chatroomNoSQLRepoer.SelectChatroomLogs(ctx, models.SelectDBMessagesParams{
 		ChatroomID: chatroomID,
@@ -105,11 +109,11 @@ func (u User) EnterChatroom(ctx context.Context, chatroomID uuid.UUID, addUser b
 			return errors.Wrap(err, "failed to unmarshal chatroom logs")
 		}
 
-		u.WriteMessage(msgRaw)
+		u.ReceiveMessage(msgRaw)
 	}
 
 	// Send entry text message to all people in chatroom.
-	u.ReadMessage(ctx, models.WSTextMessage{
+	u.SendMessage(ctx, models.WSTextMessage{
 		Text:       "entered chat",
 		Timestamp:  models.StandardizeTime(time.Now()),
 		UserID:     u.user.ID.String(),
@@ -120,7 +124,7 @@ func (u User) EnterChatroom(ctx context.Context, chatroomID uuid.UUID, addUser b
 	return nil
 }
 
-func (u User) ReadMessage(ctx context.Context, msg models.WSTextMessage) {
+func (u User) SendMessage(ctx context.Context, msg models.WSTextMessage) {
 	msg.Timestamp = models.StandardizeTime(time.Now())
 	msg.UserID = u.user.ID.String()
 	msg.UserName = u.user.Name
@@ -142,23 +146,37 @@ func (u User) ReadMessage(ctx context.Context, msg models.WSTextMessage) {
 		slog.Error("failed to insert chatroom log", err.Error())
 	}
 
-	chatroomRepo, loaded := u.chatroomRepos.Load(chatroomID)
-	if !loaded {
-		slog.Error("failed to load chatroom repo with id: ", msg.ChatroomID)
+	msgBytes, err := json.Marshal(msg)
+	if err != nil {
+		// @todo propagate error message to websocket
+		slog.Error("failed to marshal chatroom log", err.Error())
 	}
-	chatroomRepo.(repo.ChatroomRepoer).ReceiveMessage(msg)
+
+	u.messageBroker.DistributeMessage(ctx, msgBytes)
 }
 
-func (u User) WriteMessage(msgRaw []byte) {
+// Used to writing to this user directly, currently for initial noSQL data retrieval.
+func (u User) ReceiveMessage(msgRaw models.WSTextMessageBytes) {
 	u.user.WriteChan <- msgRaw
 }
 
+func (u User) ListenForMessages(ctx context.Context) {
+	msgBytesChan := make(chan models.WSTextMessageBytes)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		u.messageBroker.Listen(msgBytesChan)
+	}()
+	for msgRaw := range msgBytesChan {
+		u.ReceiveMessage(msgRaw)
+	}
+
+	wg.Wait()
+}
+
 func (u User) RemoveUser() {
-	u.chatroomRepos.Range(func(key, value any) bool {
-		value.(repo.ChatroomRepoer).RemoveUser(u.user.ID)
-		return true
-	})
-	u.userRepo.RemoveID(u.user.ID)
+	u.messageBroker.RemoveUser(u.user.ID)
 }
 
 // @todo consider just writing the error in write channel
@@ -218,13 +236,7 @@ func (u User) UpdateChatroom(ctx context.Context, msg models.WSChatroomUpdateMes
 		return
 	}
 
-	chatroomRepo, ok := u.chatroomRepos.Load(chatroomID)
-	if !ok {
-		slog.Error("chatroom repo with chatroomID does not exist: %s", chatroomID.String())
-		return
-	}
-
-	chatroomRepo.(repo.ChatroomRepoer).DistributeMessage(updateMessage)
+	u.messageBroker.DistributeMessage(ctx, updateMessage)
 }
 
 func (u User) DeleteChatroom(ctx context.Context, msg models.WSChatroomDeleteMessage) {
@@ -236,12 +248,6 @@ func (u User) DeleteChatroom(ctx context.Context, msg models.WSChatroomDeleteMes
 
 	if models.MainChatUUID == chatroomID {
 		slog.Error("cannot delete main chat")
-		return
-	}
-
-	chatroomRepo, ok := u.chatroomRepos.Load(chatroomID)
-	if !ok {
-		slog.Error("you are not part of the chatroom repo or it does not exist")
 		return
 	}
 
@@ -262,7 +268,7 @@ func (u User) DeleteChatroom(ctx context.Context, msg models.WSChatroomDeleteMes
 		return
 	}
 
-	chatroomRepo.(repo.ChatroomRepoer).DistributeMessage(deleteMessage)
+	u.messageBroker.DistributeMessage(ctx, deleteMessage)
 }
 
 func (u User) InitialConnect(ctx context.Context) error {

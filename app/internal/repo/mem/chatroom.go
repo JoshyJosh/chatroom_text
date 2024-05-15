@@ -1,13 +1,13 @@
 package mem
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
 
 	"chatroom_text/internal/models"
-	"chatroom_text/internal/repo"
 
 	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
@@ -32,9 +32,9 @@ func init() {
 	chatroomMap.Store(models.MainChatUUID, &mainchat)
 }
 
-func GetChatroomRepoer(uuid uuid.UUID) repo.ChatroomRepoer {
+func GetChatroomRepoer(chatroomUUID uuid.UUID) *chatroomRoster {
 	roster, _ := chatroomMap.LoadOrStore(
-		uuid,
+		chatroomUUID,
 		&chatroomRoster{
 			userMap: &sync.Map{},
 			logs:    []models.ChatroomLog{},
@@ -57,24 +57,29 @@ func (c chatroomRoster) AddUser(user models.User) error {
 	return nil
 }
 
-func (c chatroomRoster) RemoveUser(id uuid.UUID) {
-	c.userMap.Delete(id)
+func (c chatroomRoster) RemoveUser(userID uuid.UUID) error {
+	c.userMap.Delete(userID)
+	return nil
 }
 
-func (c *chatroomRoster) ReceiveMessage(msg models.WSTextMessage) {
+func (c *chatroomRoster) ReceiveMessage(msg models.WSTextMessage) error {
 	slog.Info(fmt.Sprintf("received message: %s", msg.Text))
+
+	// @todo technically more efficient but make it readable for future implementations
 	msgRaw, err := json.Marshal(models.WSMessage{
 		TextMessage: &msg,
 	})
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to unmarshal received message: %v", msg))
-		return
+		return err
 	}
 
-	c.DistributeMessage(msgRaw)
+	c.DistributeMessage(context.Background(), msgRaw)
+
+	return nil
 }
 
-func (c *chatroomRoster) DistributeMessage(msgRaw []byte) {
+func (c *chatroomRoster) DistributeMessage(ctx context.Context, msgBytes models.WSTextMessageBytes) error {
 	slog.Info("distributing message")
 
 	c.userMap.Range(func(key, user any) bool {
@@ -84,7 +89,13 @@ func (c *chatroomRoster) DistributeMessage(msgRaw []byte) {
 			slog.Error(fmt.Sprintf("failed to convert client %s in map range, client type %T", key, user))
 		}
 
-		u.WriteChan <- msgRaw
+		u.WriteChan <- msgBytes
 		return true
 	})
+
+	return nil
+}
+
+func (r chatroomRoster) Listen(msgBytesChan chan<- models.WSTextMessageBytes) {
+	fmt.Println("blabla")
 }

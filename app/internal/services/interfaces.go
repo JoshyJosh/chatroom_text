@@ -9,9 +9,9 @@ import (
 
 type UserServicer interface {
 	// ReadMessage takes an unmarshalled websocket message and appends a user ID and timestamp.
-	ReadMessage(ctx context.Context, msg models.WSTextMessage)
+	SendMessage(ctx context.Context, msg models.WSTextMessage)
 	// ReadMessage takes a marshalled websocket message and appends a user ID and timestamp.
-	WriteMessage(msgRaw []byte)
+	ReceiveMessage(msg models.WSTextMessageBytes)
 	// RemoveUser removes user from chatroom and user roster.
 	RemoveUser()
 	// Add user to chatroom and retrieve its logs.
@@ -22,4 +22,6 @@ type UserServicer interface {
 	DeleteChatroom(ctx context.Context, msg models.WSChatroomDeleteMessage)
 
 	InitialConnect(ctx context.Context) error
+
+	ListenForMessages(ctx context.Context)
 }

@@ -35,7 +35,7 @@ func InitAddr() {
 	}
 }
 
-func GetChatroomNoSQLRepoer(ctx context.Context) (repo.ChatroomNoSQLRepoer, error) {
+func GetChatroomNoSQLRepoer(ctx context.Context) (repo.ChatroomLogger, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))

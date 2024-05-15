@@ -11,6 +11,7 @@ import (
 	"chatroom_text/internal/handlers"
 	"chatroom_text/internal/middleware"
 	"chatroom_text/internal/repo/nosql"
+	"chatroom_text/internal/repo/rabbitmq"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/exp/slog"
@@ -38,6 +39,12 @@ func main() {
 
 	router := gin.Default()
 	authMiddleware := middleware.GetAuthClient(logger)
+
+	err := rabbitmq.InitRabbitMQClient()
+	if err != nil {
+		panic(err)
+	}
+	defer rabbitmq.CloseRabbitMQClient()
 
 	router.Use(authMiddleware.SessionMiddleware())
 

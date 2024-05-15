@@ -6,6 +6,7 @@ services:
     depends_on:
       - mongodb
       - kratos
+      - rabbitmq
     networks:
       - app_network
     environment:
@@ -13,6 +14,7 @@ services:
       - KRATOS_URL=http://kratos:4433
       - MONGODB_URI=mongodb://mongodb:27017
       - MONGODB_DB=chatroom
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/ # todo create separate user for rabbitmq
 
   mongodb:
     build: ./mongo
@@ -80,7 +82,7 @@ services:
       - app_network
     
   nginx:
-    image: nginx
+    image: nginx:latest
     ports:
       - "80:80"
       - "443:443"
@@ -91,6 +93,13 @@ services:
       - ./certs/:/etc/nginx/certs/
     depends_on:
       - chatroom
+    networks:
+      - app_network
+
+  rabbitmq:
+    image: rabbitmq:latest
+    ports:
+      - "5672:5672"
     networks:
       - app_network
 

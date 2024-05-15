@@ -7,15 +7,17 @@ import (
 	"github.com/google/uuid"
 )
 
-type ChatroomRepoer interface {
+type ChatroomMessageBroker interface {
 	// AddUser adds an existing user to chatroom, returns error if user exists.
-	AddUser(user models.User) error
+	AddUser(chatroomID uuid.UUID) error
 	// RemoveUser removes user from chatroom.
-	RemoveUser(id uuid.UUID)
+	RemoveUser(chatroomID uuid.UUID) error
 	// ReceiveMessage receives message from user to chatroom.
-	ReceiveMessage(msg models.WSTextMessage)
+	ReceiveMessage(msg models.WSTextMessage) error
 	// DistributeMessage Distributes messages to all users in chatroom.
-	DistributeMessage(message []byte)
+	DistributeMessage(ctx context.Context, msgBytes models.WSTextMessageBytes) error
+
+	Listen(msgBytesChan chan<- models.WSTextMessageBytes)
 }
 
 type UserRepoer interface {
@@ -25,7 +27,7 @@ type UserRepoer interface {
 	RemoveID(id uuid.UUID)
 }
 
-type ChatroomNoSQLRepoer interface {
+type ChatroomLogger interface {
 	SelectChatroomLogs(ctx context.Context, params models.SelectDBMessagesParams) ([]models.ChatroomLog, error)
 	InsertChatroomLogs(ctx context.Context, params models.InsertDBMessagesParams) error
 	// Create chatroom with initially invited user IDs.

@@ -20,6 +20,9 @@ type WSTextMessage struct {
 	ChatroomID string    `json:"chatroomID"`
 }
 
+// WSTextMessageBytes is a marshalled representation of WSTextMessage.
+type WSTextMessageBytes []byte
+
 type ChatroomMessage struct {
 	Create *WSChatroomCreateMessage `json:"create,omitempty"`
 	Update *WSChatroomUpdateMessage `json:"update,omitempty"`

@@ -65,8 +65,8 @@ func newUsersService() User {
 			Name:      "testuser",
 			WriteChan: make(chan []byte),
 		},
-		userRepo:      MockUserRepo{},
-		chatroomRepos: &sync.Map{}, // map which key is the chat uuid and value is repo.ChatroomRepoer
+		// userRepo:      MockUserRepo{},
+		// chatroomRepos: &sync.Map{}, // map which key is the chat uuid and value is repo.ChatroomRepoer
 		chatroomNoSQLRepoer: MockNoSQL{
 			map[string]models.ChatroomEntry{
 				models.MainChatUUID.String(): models.ChatroomEntry{
