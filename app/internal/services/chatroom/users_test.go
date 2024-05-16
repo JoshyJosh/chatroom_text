@@ -53,7 +53,6 @@ func (MockUserRepo) AddUser(user models.User) error {
 	return nil
 }
 
-// ReceiveMessage receives message from user to chatroom.
 func (MockUserRepo) RemoveID(id uuid.UUID) {}
 
 const testChatroomID = "3ee13cbc-e2c3-4975-957f-c40eab28f83d"

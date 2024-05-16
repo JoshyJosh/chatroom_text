@@ -172,7 +172,7 @@ func (r RabbitMQBroker) Listen(msgBytesChan chan<- models.WSTextMessageBytes) {
 	deliveryChan, err := r.channel.Consume(
 		r.queue.Name,        // queue
 		r.userUUID.String(), //consumer name
-		true,                // autoAck
+		false,               // autoAck
 		false,               // exclusive
 		false,               // noLocal
 		false,               // noWait
@@ -188,5 +188,6 @@ func (r RabbitMQBroker) Listen(msgBytesChan chan<- models.WSTextMessageBytes) {
 
 	for delivery := range deliveryChan {
 		msgBytesChan <- delivery.Body
+		r.channel.Ack(delivery.DeliveryTag, false)
 	}
 }
