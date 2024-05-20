@@ -47,10 +47,6 @@ func GetUserServicer(ctx context.Context, writeChan chan []byte, userData models
 		user:                user,
 	}
 
-	// if err := userService.messageBroker.AddUser(userService.user); err != nil {
-	// 	return nil, err
-	// }
-
 	return userService, nil
 }
 

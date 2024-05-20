@@ -136,11 +136,6 @@ func (r RabbitMQBroker) RemoveUser(chatroomID uuid.UUID) error {
 	return nil
 }
 
-// ReceiveMessage receives message from user to chatroom.
-func (r RabbitMQBroker) ReceiveMessage(_ models.WSTextMessage) error {
-	return nil
-}
-
 // @todo make the message distribute to private channels.
 // DistributeMessage Distributes messages to all users in chatroom.
 func (r RabbitMQBroker) DistributeMessage(ctx context.Context, msgBytes models.WSTextMessageBytes) error {

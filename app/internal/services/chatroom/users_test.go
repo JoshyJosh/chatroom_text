@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"chatroom_text/internal/models"
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"sync"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -49,11 +49,19 @@ func (MockNoSQL) GetUserConnectedChatrooms(ctx context.Context, userID uuid.UUID
 
 type MockUserRepo struct{}
 
-func (MockUserRepo) AddUser(user models.User) error {
+func (MockUserRepo) AddUser(chatroomID uuid.UUID) error {
 	return nil
 }
 
-func (MockUserRepo) RemoveID(id uuid.UUID) {}
+func (MockUserRepo) RemoveUser(chatroomID uuid.UUID) error {
+	return nil
+}
+
+func (MockUserRepo) DistributeMessage(ctx context.Context, msgBytes models.WSTextMessageBytes) error {
+	return nil
+}
+
+func (MockUserRepo) Listen(msgBytesChan chan<- models.WSTextMessageBytes) {}
 
 const testChatroomID = "3ee13cbc-e2c3-4975-957f-c40eab28f83d"
 
@@ -68,11 +76,11 @@ func newUsersService() User {
 		// chatroomRepos: &sync.Map{}, // map which key is the chat uuid and value is repo.ChatroomRepoer
 		chatroomNoSQLRepoer: MockNoSQL{
 			map[string]models.ChatroomEntry{
-				models.MainChatUUID.String(): models.ChatroomEntry{
+				models.MainChatUUID.String(): {
 					ChatroomID: models.MainChatUUID,
 					Name:       "",
 				},
-				testChatroomID: models.ChatroomEntry{
+				testChatroomID: {
 					ChatroomID: uuid.MustParse(testChatroomID),
 					Name:       "testChatroom",
 				},
@@ -84,6 +92,7 @@ func newUsersService() User {
 func TestSuccessfullyEnterMainChatroom(t *testing.T) {
 	a := assert.New(t)
 	uService := newUsersService()
+	uService.messageBroker = MockUserRepo{}
 	receivedMessages := [][]byte{}
 
 	var wg sync.WaitGroup
@@ -128,6 +137,7 @@ func TestSuccessfullyEnterMainChatroom(t *testing.T) {
 func TestSuccessfullyEnterTestChatroom(t *testing.T) {
 	a := assert.New(t)
 	uService := newUsersService()
+	uService.messageBroker = MockUserRepo{}
 	receivedMessages := [][]byte{}
 
 	var wg sync.WaitGroup
@@ -173,6 +183,7 @@ func TestSuccessfullyEnterTestChatroom(t *testing.T) {
 func TestFailToEnterTestChatroom(t *testing.T) {
 	a := assert.New(t)
 	uService := newUsersService()
+	uService.messageBroker = MockUserRepo{}
 	receivedMessages := [][]byte{}
 
 	var wg sync.WaitGroup

@@ -223,6 +223,7 @@ func TestSelectChatroomLogs(t *testing.T) {
 	})
 }
 
+// mtest currently does not support writing indexes.
 // func InitializeChatroomList(mt *mtest.T) {
 // 	idx, err := mt.Coll.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
 // 		{
