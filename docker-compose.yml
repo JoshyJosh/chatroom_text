@@ -4,9 +4,12 @@ services:
   chatroom:
     build: .
     depends_on:
-      - mongodb
-      - kratos
-      - rabbitmq
+      mongodb:
+        condition: service_started
+      kratos:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - app_network
     environment:
@@ -101,6 +104,11 @@ services:
     ports:
       # - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
     networks:
       - app_network
 
