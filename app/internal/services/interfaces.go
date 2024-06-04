@@ -15,7 +15,7 @@ type UserServicer interface {
 	// RemoveUser removes user from chatroom and user roster.
 	RemoveUser()
 	// EnterChatroom adds user to chatroom and retrieves its logs.
-	EnterChatroom(ctx context.Context, chatroomID uuid.UUID, addUser bool) error
+	EnterChatroom(ctx context.Context, chatroomID uuid.UUID) error
 
 	// CreateChatroom creates a chatroom and adds its creator.
 	CreateChatroom(ctx context.Context, msg models.WSChatroomCreateMessage)

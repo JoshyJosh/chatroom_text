@@ -167,7 +167,7 @@ func (m MongoRepo) DeleteChatroom(ctx context.Context, chatroomID uuid.UUID) err
 }
 
 // Delete chatroom.
-func (m MongoRepo) GetChatroomEntry(ctx context.Context, chatroomID uuid.UUID) (models.ChatroomEntry, error) {
+func (m MongoRepo) SelectChatroomEntry(ctx context.Context, chatroomID uuid.UUID) (models.ChatroomEntry, error) {
 	collection := m.client.Database(database, nil).Collection("chatroom_list")
 
 	filter := bson.D{{
@@ -188,6 +188,29 @@ func (m MongoRepo) GetChatroomEntry(ctx context.Context, chatroomID uuid.UUID) (
 func (m MongoRepo) AddUserToChatroom(ctx context.Context, chatroomID uuid.UUID, userID uuid.UUID) error {
 	collection := m.client.Database(database, nil).Collection("chatroom_users")
 
+	var res bson.M
+	err := collection.FindOne(
+		ctx,
+		bson.D{
+			{
+				Key:   "chatroom_id",
+				Value: models.GoUUIDToMongoUUID(chatroomID),
+			},
+			{
+				Key:   "user_id",
+				Value: models.GoUUIDToMongoUUID(userID),
+			},
+		},
+	).Decode(&res)
+
+	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
+		return errors.Wrap(err, "failed to find if user is connected to chatroom")
+	}
+
+	if res != nil {
+		return nil
+	}
+
 	insert := models.NoSQLChatroomUserEntry{
 		ChatroomID: models.GoUUIDToMongoUUID(chatroomID),
 		UserID:     models.GoUUIDToMongoUUID(userID),
@@ -199,7 +222,7 @@ func (m MongoRepo) AddUserToChatroom(ctx context.Context, chatroomID uuid.UUID, 
 	return nil
 }
 
-func (m MongoRepo) GetUserConnectedChatrooms(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+func (m MongoRepo) SelectUserConnectedChatrooms(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
 	collection := m.client.Database(database, nil).Collection("chatroom_users")
 
 	filter := bson.D{{
@@ -226,4 +249,72 @@ func (m MongoRepo) GetUserConnectedChatrooms(ctx context.Context, userID uuid.UU
 	}
 
 	return chatroomIDs, nil
+}
+
+func (m MongoRepo) SelectChatroomUsers(ctx context.Context, chatroomID uuid.UUID) ([]models.User, error) {
+	collection := m.client.Database(database, nil).Collection("chatroom_users")
+
+	filter := bson.D{{
+		Key:   "chatroom_id",
+		Value: models.GoUUIDToMongoUUID(chatroomID),
+	}}
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find chatroom users")
+	}
+
+	var users []models.User
+	for cursor.Next(ctx) {
+		var result models.NoSQLChatroomUserEntry
+		if err := cursor.Decode(&result); err != nil {
+			return nil, errors.Wrap(err, "failed to decode chatroom users")
+		}
+
+		user := models.User{
+			ID: models.MongoUUIDToGoUUID(result.UserID),
+		}
+		users = append(users, user)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, errors.Wrap(err, "failed to read chatroom users from cursor")
+	}
+
+	return users, nil
+}
+
+func (m MongoRepo) StoreUsername(ctx context.Context, user models.User) error {
+	slog.Info("storing user")
+	defer slog.Info("stored user")
+	collection := m.client.Database(database, nil).Collection("users_list")
+
+	// Convert user ID once and reuse it.
+	mongoUserID := models.GoUUIDToMongoUUID(user.ID)
+	var result bson.M
+	err := collection.FindOne(
+		ctx,
+		bson.D{
+			{Key: "user_id", Value: mongoUserID},
+		},
+	).Decode(&result)
+
+	if err != nil {
+		// ErrNoDocuments means that the filter did not match any documents in
+		// the collection.
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			collection.InsertOne(
+				ctx,
+				bson.D{
+					{Key: "user_id", Value: mongoUserID},
+					{Key: "user_name", Value: user.Name},
+				},
+			)
+
+			return nil
+		}
+
+		slog.Error(fmt.Sprint(err))
+	}
+
+	return err
 }

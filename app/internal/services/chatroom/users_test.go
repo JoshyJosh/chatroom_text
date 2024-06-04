@@ -33,7 +33,7 @@ func (MockNoSQL) UpdateChatroom(ctx context.Context, chatroomID uuid.UUID, newNa
 func (MockNoSQL) DeleteChatroom(ctx context.Context, chatroomID uuid.UUID) error {
 	return nil
 }
-func (m MockNoSQL) GetChatroomEntry(ctx context.Context, chatroomID uuid.UUID) (models.ChatroomEntry, error) {
+func (m MockNoSQL) SelectChatroomEntry(ctx context.Context, chatroomID uuid.UUID) (models.ChatroomEntry, error) {
 	chatroomEntry, ok := m.chatroomMap[chatroomID.String()]
 	if !ok {
 		return models.ChatroomEntry{}, errors.New("failed to find chatroom")
@@ -43,8 +43,14 @@ func (m MockNoSQL) GetChatroomEntry(ctx context.Context, chatroomID uuid.UUID) (
 func (MockNoSQL) AddUserToChatroom(ctx context.Context, chatroomID uuid.UUID, userID uuid.UUID) error {
 	return nil
 }
-func (MockNoSQL) GetUserConnectedChatrooms(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+func (MockNoSQL) SelectChatroomUsers(ctx context.Context, chatroomID uuid.UUID) ([]models.User, error) {
 	return nil, nil
+}
+func (MockNoSQL) SelectUserConnectedChatrooms(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	return nil, nil
+}
+func (MockNoSQL) StoreUsername(ctx context.Context, user models.User) error {
+	return nil
 }
 
 type MockUserRepo struct{}
@@ -61,7 +67,7 @@ func (MockUserRepo) DistributeMessage(ctx context.Context, msgBytes models.WSTex
 	return nil
 }
 
-func (MockUserRepo) Listen(msgBytesChan chan<- models.WSTextMessageBytes) {}
+func (MockUserRepo) Listen(ctx context.Context, msgBytesChan chan<- models.WSTextMessageBytes) {}
 
 const testChatroomID = "3ee13cbc-e2c3-4975-957f-c40eab28f83d"
 
@@ -110,7 +116,7 @@ func TestSuccessfullyEnterMainChatroom(t *testing.T) {
 		}
 	}()
 
-	err := uService.EnterChatroom(context.Background(), models.MainChatUUID, false)
+	err := uService.EnterChatroom(context.Background(), models.MainChatUUID)
 	a.NoError(err)
 
 	methodDone <- struct{}{}
@@ -156,7 +162,7 @@ func TestSuccessfullyEnterTestChatroom(t *testing.T) {
 	}()
 
 	chatroomUUID := uuid.MustParse(testChatroomID)
-	err := uService.EnterChatroom(context.Background(), chatroomUUID, false)
+	err := uService.EnterChatroom(context.Background(), chatroomUUID)
 	a.NoError(err)
 
 	methodDone <- struct{}{}
@@ -202,7 +208,7 @@ func TestFailToEnterTestChatroom(t *testing.T) {
 	}()
 
 	chatroomUUID := uuid.New()
-	err := uService.EnterChatroom(context.Background(), chatroomUUID, false)
+	err := uService.EnterChatroom(context.Background(), chatroomUUID)
 	a.Error(err)
 
 	methodDone <- struct{}{}

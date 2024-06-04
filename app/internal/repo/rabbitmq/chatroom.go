@@ -32,7 +32,12 @@ var rabbitMQURL string
 // Separate users use separate rabbitmq channels for communication. The node uses the same connection.
 var channelMap sync.Map
 
+const CHANNEL_LOGS_EXCHANGE = "channel_logs"
+
 func InitRabbitMQClient() error {
+	slog.Info("initializing rabbitMQ")
+	defer slog.Info("initialized rabbitMQ")
+
 	rabbitMQURL = os.Getenv("RABBITMQ_URL")
 	var err error
 	rabbitMQConn, err = amqp.Dial(rabbitMQURL)
@@ -44,18 +49,25 @@ func InitRabbitMQClient() error {
 
 	channel, err := rabbitMQConn.Channel()
 	if err != nil {
-		panic(err)
+		err = errors.Wrap(err, "failed to connect to RabbitMQ channel")
+		slog.Error(fmt.Sprint(err))
+		return err
 	}
 
-	channel.ExchangeDeclare(
-		"channel_logs", // name
-		"topic",        // type
-		true,           // durable
-		false,          // auto-deleted
-		false,          // internal
-		false,          // no-wait
-		nil,            // arguments
+	err = channel.ExchangeDeclare(
+		CHANNEL_LOGS_EXCHANGE, // name
+		"topic",               // type
+		false,                 // durable
+		true,                  // auto-deleted
+		false,                 // internal
+		false,                 // no-wait
+		nil,                   // arguments
 	)
+	if err != nil {
+		err = errors.Wrap(err, "failed to declare channel_logs exchange")
+		slog.Error(fmt.Sprint(err))
+		return err
+	}
 
 	return nil
 }
@@ -124,11 +136,11 @@ func GetChatroomMessageBroker(user models.User) (repo.ChatroomMessageBroker, err
 
 func (r RabbitMQBroker) AddUser(chatroomID uuid.UUID) error {
 	err := r.channel.QueueBind(
-		r.queue.Name,        // name
-		chatroomID.String(), // routing key
-		"channel_logs",      // exchange
-		false,               // noWait
-		nil,                 // args
+		r.queue.Name,          // name
+		chatroomID.String(),   // routing key
+		CHANNEL_LOGS_EXCHANGE, // exchange
+		false,                 // noWait
+		nil,                   // args
 	)
 	if err != nil {
 		return errors.Wrapf(err, "failed to bind queue for %s", chatroomID)
@@ -139,10 +151,10 @@ func (r RabbitMQBroker) AddUser(chatroomID uuid.UUID) error {
 
 func (r RabbitMQBroker) RemoveUser(chatroomID uuid.UUID) error {
 	err := r.channel.QueueUnbind(
-		r.queue.Name,        // name
-		chatroomID.String(), // routing key
-		"channel_logs",      // exchange
-		nil,                 // args
+		r.queue.Name,          // name
+		chatroomID.String(),   // routing key
+		CHANNEL_LOGS_EXCHANGE, // exchange
+		nil,                   // args
 	)
 	if err != nil {
 		return errors.Wrapf(err, "failed to bind queue for %s", chatroomID)
@@ -166,10 +178,10 @@ func (r RabbitMQBroker) DistributeMessage(ctx context.Context, msgBytes models.W
 
 	err = r.channel.PublishWithContext(
 		sendCtx,
-		"direct_topics", // exchange name
-		r.queue.Name,    // routing key
-		false,           // mandatory
-		false,           // immediate
+		CHANNEL_LOGS_EXCHANGE,
+		r.queue.Name, // routing key
+		false,        // mandatory
+		false,        // immediate
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        msgBytes,
@@ -178,10 +190,10 @@ func (r RabbitMQBroker) DistributeMessage(ctx context.Context, msgBytes models.W
 	return errors.Wrapf(err, "failed to publish message: %s", msgBytes)
 }
 
-func (r RabbitMQBroker) Listen(msgBytesChan chan<- models.WSTextMessageBytes) {
+func (r RabbitMQBroker) Listen(ctx context.Context, msgBytesChan chan<- models.WSTextMessageBytes) {
 	deliveryChan, err := r.channel.Consume(
 		r.queue.Name,        // queue
-		r.userUUID.String(), //consumer name
+		r.userUUID.String(), // consumer name
 		false,               // autoAck
 		false,               // exclusive
 		false,               // noLocal
@@ -196,7 +208,10 @@ func (r RabbitMQBroker) Listen(msgBytesChan chan<- models.WSTextMessageBytes) {
 		// return errors.Wrapf(err, "failed to consume nessages for user %s", r.userUUID)
 	}
 
-	for delivery := range deliveryChan {
+	select {
+	case <-ctx.Done():
+		return
+	case delivery := <-deliveryChan:
 		msgBytesChan <- delivery.Body
 		r.channel.Ack(delivery.DeliveryTag, false)
 	}

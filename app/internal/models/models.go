@@ -51,6 +51,7 @@ type WSChatroomDeleteMessage struct {
 type WSChatroomEnterMessage struct {
 	ChatroomName string `json:"chatroomName"`
 	ChatroomID   string `json:"chatroomID"`
+	// UserList     []string `json:"users_list"` // list of users present in chatroom
 }
 
 type WSCreateChatroomConfirmationMessage struct {
@@ -109,7 +110,6 @@ type NoSQLChatroomUserEntry struct {
 	UserID     primitive.Binary `bson:"user_id"`
 }
 
-// @todo actuall prepare use for TimestampFrom
 type SelectDBMessagesParams struct {
 	TimestampFrom time.Time
 	ChatroomID    uuid.UUID

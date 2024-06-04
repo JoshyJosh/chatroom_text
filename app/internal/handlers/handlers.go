@@ -84,12 +84,15 @@ func (userHandle) ConnectWebSocket(c *gin.Context) {
 
 	userData, err := middleware.GetAuthClient(logger).GetUserData(c.Request.Context(), c.Request)
 	if err != nil {
+		slog.Error(fmt.Sprintf("failed to get user data: %s", err))
 		return
 	}
 
-	if _, ok := wsConnMap.Load(userData.ID); ok {
-		return
-	}
+	// @todo uncomment after gracefull disconnect is fixed.
+	// if _, ok := wsConnMap.Load(userData.ID); ok {
+	// 	slog.Error("duplicate ws connection  in wsConnMap")
+	// 	return
+	// }
 
 	wsConn, err := websocket.Accept(c.Writer, c.Request, nil)
 	if err != nil {
@@ -102,9 +105,10 @@ func (userHandle) ConnectWebSocket(c *gin.Context) {
 
 	wsConnMap.Store(userData.ID, struct{}{})
 	defer func() {
-		slog.Debug("deleting wsConnMap entry")
+		// @todo does not delete every time, need graceful reconnect
+		slog.Info("deleting wsConnMap entry")
 		wsConnMap.Delete(userData.ID)
-		slog.Debug("deleted wsConnMap entry")
+		slog.Info("deleted wsConnMap entry")
 	}()
 
 	writeChan := make(chan []byte, 10)
@@ -158,10 +162,11 @@ func (userHandle) ConnectWebSocket(c *gin.Context) {
 	// Start TextMessageListener
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		userService.ListenForMessages(ctx)
 	}()
 
-	// entering main chat
+	// Entering main chat
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -190,6 +195,8 @@ func (u userWebsocketHandle) writeMsg(ctx context.Context, msg []byte) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
+	slog.Info(fmt.Sprintf("%s", msg))
+
 	if err := u.conn.Write(ctx, websocket.MessageText, msg); err != nil {
 		slog.Error(err.Error())
 	}
@@ -199,9 +206,9 @@ func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
 	for {
 		var msg models.WSMessage
 		if err := wsjson.Read(ctx, u.conn, &msg); err != nil {
-			slog.Info(fmt.Sprintf("got error status: %s", websocket.CloseStatus(err).String()))
 			if websocket.CloseStatus(err) == websocket.StatusAbnormalClosure ||
 				websocket.CloseStatus(err) == websocket.StatusGoingAway {
+				slog.Info(fmt.Sprintf("got error status: %s", websocket.CloseStatus(err).String()))
 				return err
 			}
 
@@ -228,6 +235,7 @@ func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
 			var err error
 			msgBytes, err = json.Marshal(msg.TextMessage)
 			if err != nil {
+				slog.Info("######################")
 				slog.Error("failed to marshal text message: %s", err)
 				continue
 			}

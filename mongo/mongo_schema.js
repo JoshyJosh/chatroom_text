@@ -13,3 +13,6 @@ db.chatroom_list.insertOne({
 db.createCollection("chatroom_users")
 
 db.chatroom_name.createIndex({"chatroom_id": 1, "user_id": 1}, {unique: true})
+
+db.createCollection("user_list")
+db.user_list.createIndex({"user_id": 1}, {unique: true})

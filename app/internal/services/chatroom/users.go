@@ -50,29 +50,36 @@ func GetUserServicer(ctx context.Context, writeChan chan []byte, userData models
 	return userService, nil
 }
 
-func (u User) EnterChatroom(ctx context.Context, chatroomID uuid.UUID, addUser bool) error {
+func (u User) EnterChatroom(ctx context.Context, chatroomID uuid.UUID) error {
 	slog.Info("entering chatroomID: ", chatroomID.String())
 
 	if err := u.messageBroker.AddUser(chatroomID); err != nil {
 		return err
 	}
 
-	chatroomEntry, err := u.chatroomNoSQLRepoer.GetChatroomEntry(ctx, chatroomID)
+	chatroomEntry, err := u.chatroomNoSQLRepoer.SelectChatroomEntry(ctx, chatroomID)
 	if err != nil {
 		return errors.Wrap(err, "failed to get chatroom entry")
 	}
 
 	// @todo determine if users have actually been added to nosql entry
 	// If user connects the first time mainChat adds the user if it is not listed
-	if addUser {
-		u.chatroomNoSQLRepoer.AddUserToChatroom(ctx, chatroomID, u.user.ID)
+	u.chatroomNoSQLRepoer.AddUserToChatroom(ctx, chatroomID, u.user.ID)
+
+	users, err := u.chatroomNoSQLRepoer.SelectChatroomUsers(ctx, chatroomID)
+	if err != nil {
+		return errors.Wrap(err, "failed to select chatroom users")
 	}
+
+	slog.Info(fmt.Sprintf("%#v", users))
+	// userList := []string{}
 
 	msgRaw, err := json.Marshal(models.WSMessage{
 		ChatroomMessage: &models.ChatroomMessage{
 			Enter: &models.WSChatroomEnterMessage{
 				ChatroomName: chatroomEntry.Name,
 				ChatroomID:   chatroomEntry.ChatroomID.String(),
+				// UserList:     userList, // @todo stop debugging
 			},
 		},
 	})
@@ -82,6 +89,8 @@ func (u User) EnterChatroom(ctx context.Context, chatroomID uuid.UUID, addUser b
 
 	u.ReceiveMessage(msgRaw)
 
+	// Get current text history from chatroom.
+	slog.Debug("getting logs")
 	logs, err := u.chatroomNoSQLRepoer.SelectChatroomLogs(ctx, models.SelectDBMessagesParams{
 		ChatroomID: chatroomID,
 	})
@@ -108,7 +117,8 @@ func (u User) EnterChatroom(ctx context.Context, chatroomID uuid.UUID, addUser b
 		u.ReceiveMessage(msgRaw)
 	}
 
-	// Send entry text message to all people in chatroom.
+	slog.Debug("sending enter message")
+	// Send user entry text message to all people in chatroom.
 	u.SendMessage(ctx, models.WSTextMessage{
 		Text:       "entered chat",
 		Timestamp:  models.StandardizeTime(time.Now()),
@@ -162,11 +172,21 @@ func (u User) ListenForMessages(ctx context.Context) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		u.messageBroker.Listen(msgBytesChan)
+		u.messageBroker.Listen(ctx, msgBytesChan)
 	}()
-	for msgRaw := range msgBytesChan {
-		u.ReceiveMessage(msgRaw)
-	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case msgRaw := <-msgBytesChan:
+				u.ReceiveMessage(msgRaw)
+			}
+		}
+	}()
 
 	wg.Wait()
 }
@@ -190,7 +210,7 @@ func (u User) CreateChatroom(ctx context.Context, msg models.WSChatroomCreateMes
 		return
 	}
 
-	if err := u.EnterChatroom(ctx, chatroomID, true); err != nil {
+	if err := u.EnterChatroom(ctx, chatroomID); err != nil {
 		slog.Error("failed to enter chatroom ", err)
 		return
 	}
@@ -268,26 +288,28 @@ func (u User) DeleteChatroom(ctx context.Context, msg models.WSChatroomDeleteMes
 }
 
 func (u User) InitialConnect(ctx context.Context) error {
-	chatroomIDs, err := u.chatroomNoSQLRepoer.GetUserConnectedChatrooms(ctx, u.user.ID)
+	slog.Info("starting initial connect")
+	defer slog.Info("finished initial connect")
+	chatroomIDs, err := u.chatroomNoSQLRepoer.SelectUserConnectedChatrooms(ctx, u.user.ID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to find initial connects for user %s", u.user.ID)
 	}
 
-	var addUser bool
+	if err = u.chatroomNoSQLRepoer.StoreUsername(ctx, u.user); err != nil {
+		return errors.Wrapf(err, "failed to store username %s", u.user.ID)
+	}
+
 	if len(chatroomIDs) == 0 {
-		slog.Info("no currently connected connecting to mainChat")
+		slog.Info("no currently connected chatrooms connecting to mainChat")
 		chatroomIDs = append(chatroomIDs, models.MainChatUUID)
-		addUser = true
 	}
 
 	for i := range chatroomIDs {
 		slog.Info(fmt.Sprintf("adding user to chatroom %s", chatroomIDs[i].String()))
-		if err := u.EnterChatroom(ctx, chatroomIDs[i], addUser); err != nil {
+		if err := u.EnterChatroom(ctx, chatroomIDs[i]); err != nil {
 			return errors.Wrapf(err, "failed to enter chatroom %s", chatroomIDs[i].String())
 		}
 	}
-
-	slog.Info("finished initial connect")
 
 	return nil
 }
