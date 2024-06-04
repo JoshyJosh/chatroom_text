@@ -71,15 +71,20 @@ func (u User) EnterChatroom(ctx context.Context, chatroomID uuid.UUID) error {
 		return errors.Wrap(err, "failed to select chatroom users")
 	}
 
-	slog.Info(fmt.Sprintf("%#v", users))
-	// userList := []string{}
+	userList := []models.WSUserEntry{}
+	for _, user := range users {
+		userList = append(userList, models.WSUserEntry{
+			ID:   user.ID.String(),
+			Name: user.Name,
+		})
+	}
 
 	msgRaw, err := json.Marshal(models.WSMessage{
 		ChatroomMessage: &models.ChatroomMessage{
 			Enter: &models.WSChatroomEnterMessage{
 				ChatroomName: chatroomEntry.Name,
 				ChatroomID:   chatroomEntry.ChatroomID.String(),
-				// UserList:     userList, // @todo stop debugging
+				UserList:     userList, // @todo stop debugging
 			},
 		},
 	})

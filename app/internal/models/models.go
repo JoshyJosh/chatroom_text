@@ -49,9 +49,14 @@ type WSChatroomDeleteMessage struct {
 }
 
 type WSChatroomEnterMessage struct {
-	ChatroomName string `json:"chatroomName"`
-	ChatroomID   string `json:"chatroomID"`
-	// UserList     []string `json:"users_list"` // list of users present in chatroom
+	ChatroomName string        `json:"chatroomName"`
+	ChatroomID   string        `json:"chatroomID"`
+	UserList     []WSUserEntry `json:"usersList"` // list of users present in chatroom
+}
+
+type WSUserEntry struct {
+	Name string `json:"name"`
+	ID   string `json:"id"`
 }
 
 type WSCreateChatroomConfirmationMessage struct {

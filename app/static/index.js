@@ -5,6 +5,7 @@ var chatroomSelectList = document.getElementById("chatroomSelectList");
 var chatroomCreateInput = document.getElementById("chatroomCreateInput");
 var chatroomCreateButton = document.getElementById("chatroomCreateButton");
 var currentChatNameTitle = document.getElementById("currentChatNameTitle");
+var userListUl = document.getElementById("userSelectList");
 
 var chatroomMap = {};
 var currentChatroomID = "";
@@ -61,6 +62,7 @@ WS.onmessage = (event) => {
             chatroomSelectList.appendChild(chatroomLi);
 
             selectChatroom(chatroomID)
+            listUsers(msgData.chatroom.enter.usersList)
         } else if (msgData.chatroom.hasOwnProperty("delete")) {
             let chatroomID = msgData.chatroom.delete.chatroomID; 
             delete chatroomMap[chatroomID];
@@ -235,5 +237,20 @@ function updateChatroomBtn(event) {
       WS.send(`{"chatroom":{"update":{"chatroomID":"${chatroomID}","newChatroomName":"${newChatroomName}"}}}`);
       form.remove(); // Remove the popup after submission
     });
-  }
+}
 
+function listUsers(users) {
+    userListUl.textContent = "";
+    for (let i = 0; i < users.length; i++) {
+        appendUserToList(users[i])
+    }
+}
+
+function appendUserToList(user) {
+    let userLi = document.createElement("li"); 
+    userLi.setAttribute("userid", user);
+    userLi.className = "userListEntry";
+    userLi.innerText = user.name;
+
+    userListUl.appendChild(userLi);
+}
