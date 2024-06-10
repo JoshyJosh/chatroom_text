@@ -254,11 +254,19 @@ func (m MongoRepo) SelectUserConnectedChatrooms(ctx context.Context, userID uuid
 func (m MongoRepo) SelectChatroomUsers(ctx context.Context, chatroomID uuid.UUID) ([]models.User, error) {
 	collection := m.client.Database(database, nil).Collection("chatroom_users")
 
-	filter := bson.D{{
-		Key:   "chatroom_id",
-		Value: models.GoUUIDToMongoUUID(chatroomID),
+	filter := mongo.Pipeline{{
+		{Key: "$lookup", Value: bson.D{
+			{Key: "from", Value: "users_list"},
+			{Key: "localField", Value: "user_id"},
+			{Key: "foreignField", Value: "user_id"},
+			{Key: "as", Value: "user_data"},
+		}},
 	}}
-	cursor, err := collection.Find(ctx, filter)
+	cursor, err := collection.Aggregate(
+		ctx,
+		filter,
+		nil,
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find chatroom users")
 	}
@@ -271,7 +279,8 @@ func (m MongoRepo) SelectChatroomUsers(ctx context.Context, chatroomID uuid.UUID
 		}
 
 		user := models.User{
-			ID: models.MongoUUIDToGoUUID(result.UserID),
+			ID:   models.MongoUUIDToGoUUID(result.UserID),
+			Name: result.NameData[0].UserName,
 		}
 		users = append(users, user)
 	}

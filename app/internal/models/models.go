@@ -113,6 +113,12 @@ type NoSQLChatroomEntry struct {
 type NoSQLChatroomUserEntry struct {
 	ChatroomID primitive.Binary `bson:"chatroom_id"`
 	UserID     primitive.Binary `bson:"user_id"`
+	NameData   []UserNameData   `bson:"user_data,omitempty"`
+}
+
+// User name data taken from users_list.
+type UserNameData struct {
+	UserName string `bson:"user_name"`
 }
 
 type SelectDBMessagesParams struct {
