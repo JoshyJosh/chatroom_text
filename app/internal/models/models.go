@@ -160,8 +160,8 @@ func (nscl NoSQLChatroomLog) ConvertToChatroomLog() ChatroomLog {
 
 func (params InsertDBMessagesParams) ConvertToNoSQLChatroomLog() NoSQLChatroomLog {
 	return NoSQLChatroomLog{
-		ChatroomID: primitive.Binary{Subtype: 0x04, Data: []byte(params.ChatroomID[:])},
-		UserID:     primitive.Binary{Subtype: 0x04, Data: []byte(params.UserID[:])},
+		ChatroomID: GoUUIDToMongoUUID(params.ChatroomID),
+		UserID:     GoUUIDToMongoUUID(params.UserID),
 		UserName:   params.UserName,
 		Text:       params.Text,
 		Timestamp:  params.Timestamp,

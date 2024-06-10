@@ -11,6 +11,7 @@ var chatroomMap = {};
 var currentChatroomID = "";
 
 console.log("establishing websocket");
+// @todo render url via template.
 WS = new WebSocket('wss://127.0.0.1/websocket/');
 WS.onopen = (event) => {
     console.log("onopen event: ", event);
@@ -239,6 +240,7 @@ function updateChatroomBtn(event) {
     });
 }
 
+// @todo list this on enter and rerender on new chatroom.
 function listUsers(users) {
     userListUl.textContent = "";
     for (let i = 0; i < users.length; i++) {
