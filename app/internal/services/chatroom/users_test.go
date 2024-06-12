@@ -63,11 +63,15 @@ func (MockUserRepo) RemoveUser(chatroomID uuid.UUID) error {
 	return nil
 }
 
-func (MockUserRepo) DistributeMessage(ctx context.Context, msgBytes models.WSTextMessageBytes) error {
+func (MockUserRepo) DistributeMessage(ctx context.Context, chatroomID uuid.UUID, msgBytes models.WSTextMessageBytes) error {
 	return nil
 }
 
 func (MockUserRepo) Listen(ctx context.Context, msgBytesChan chan<- models.WSTextMessageBytes) {}
+
+func (MockUserRepo) DistributeUserEntryMessage(ctx context.Context, chatroomID uuid.UUID, msgBytes models.WSUserEntry) error {
+	return nil
+}
 
 const testChatroomID = "3ee13cbc-e2c3-4975-957f-c40eab28f83d"
 

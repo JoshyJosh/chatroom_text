@@ -4,7 +4,6 @@ import (
 	"chatroom_text/internal/models"
 	"chatroom_text/internal/repo"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -113,6 +112,7 @@ func declareQueue(userUUID uuid.UUID, channel *amqp.Channel) (*amqp.Queue, error
 }
 
 func GetChatroomMessageBroker(user models.User) (repo.ChatroomMessageBroker, error) {
+	// @todo fix issue of channel failing on reconnect
 	channel, err := getChannel(user.ID)
 	if err != nil {
 		return nil, err
@@ -165,28 +165,24 @@ func (r RabbitMQBroker) RemoveUser(chatroomID uuid.UUID) error {
 
 // @todo make the message distribute to private channels.
 // DistributeMessage Distributes messages to all users in chatroom.
-func (r RabbitMQBroker) DistributeMessage(ctx context.Context, msgBytes models.WSTextMessageBytes) error {
+func (r RabbitMQBroker) DistributeMessage(ctx context.Context, chatroomID uuid.UUID, msgBytes models.WSTextMessageBytes) error {
 	sendCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	// @todo propagate this properly either via parameter or by receiving a struct of the msg.
-	var msg models.WSTextMessage
-	err := json.Unmarshal(msgBytes, &msg)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal WS text message")
-	}
+	slog.Info(fmt.Sprintf("distributing message: %s", msgBytes))
 
-	err = r.channel.PublishWithContext(
+	err := r.channel.PublishWithContext(
 		sendCtx,
-		CHANNEL_LOGS_EXCHANGE,
-		r.queue.Name, // routing key
-		false,        // mandatory
-		false,        // immediate
+		CHANNEL_LOGS_EXCHANGE,        // exchange
+		models.MainChatUUID.String(), // routing key
+		false,                        // mandatory
+		false,                        // immediate
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        msgBytes,
 		},
 	)
+
 	return errors.Wrapf(err, "failed to publish message: %s", msgBytes)
 }
 
@@ -202,17 +198,44 @@ func (r RabbitMQBroker) Listen(ctx context.Context, msgBytesChan chan<- models.W
 	)
 
 	if err != nil {
-		// @todo verify if this works
-		slog.Error("got err", err)
+		slog.Error(fmt.Sprint(errors.Wrapf(err, "failed to consume messages for user %s", r.userUUID)))
 		return
-		// return errors.Wrapf(err, "failed to consume nessages for user %s", r.userUUID)
 	}
 
-	select {
-	case <-ctx.Done():
-		return
-	case delivery := <-deliveryChan:
-		msgBytesChan <- delivery.Body
-		r.channel.Ack(delivery.DeliveryTag, false)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case delivery := <-deliveryChan:
+			msgBytesChan <- delivery.Body
+			r.channel.Ack(delivery.DeliveryTag, false)
+		}
 	}
+}
+
+// @todo make this a thing in the interface.
+func (r RabbitMQBroker) DistributeUserEntryMessage(ctx context.Context, chatroomID uuid.UUID, msgBytes models.WSUserEntry) error {
+	_, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// msgRawBytes, err := json.Marshal(msgBytes)
+	// if err != nil {
+	// 	return errors.Wrapf(err, "failed to distribute user message: %s", msgBytes.Name)
+	// }
+
+	// slog.Info("publishing raw bytes: %s", msgBytes)
+
+	// err = r.channel.PublishWithContext(
+	// 	sendCtx,
+	// 	"chatroom_new_users", // @todo make into const
+	// 	r.queue.Name,         // routing key
+	// 	false,                // mandatory
+	// 	false,                // immediate
+	// 	amqp.Publishing{
+	// 		ContentType: "application/json",
+	// 		Body:        msgRawBytes,
+	// 	},
+	// )
+	return nil
+	// return errors.Wrapf(err, "failed to publish message: %s", msgBytes)
 }

@@ -23,14 +23,14 @@ WS.onerror = (event) => {
 
 WS.onmessage = (event) => {
     console.log("onmessage event: ", event);
-    msgData = JSON.parse(event.data);
+    let msgData = JSON.parse(event.data);
     if (msgData.hasOwnProperty("text")) {
         msgP = document.createElement("p");
         msgP.textContent = `${msgData.text.timestamp}[${msgData.text.userName}]:${msgData.text.msg}`;
  
         chatroomMap[msgData.text.chatroomID].logs.push(msgP.textContent);
 
-        appendChatLogDOM(msgData.text.chatroomID);
+        appendChatLogDOM(msgData.text.chatroomID, msgData);
     } else if (msgData.hasOwnProperty("chatroom")) {
         if (msgData.chatroom.hasOwnProperty("enter")) {
             let chatroomID = msgData.chatroom.enter.chatroomID; 
@@ -165,7 +165,7 @@ function generateChatLogDOM(chatroomID) {
     });
 }
 
-function appendChatLogDOM(chatroomID) {
+function appendChatLogDOM(chatroomID, msgData) {
     for (let i = chatLogDiv.childNodes.length; i < chatroomMap[chatroomID].logs.length; i++) {
         msgP = document.createElement("p");
         msgP.textContent = `${msgData.text.timestamp}[${msgData.text.userName}]:${msgData.text.msg}`;

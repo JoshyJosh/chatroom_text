@@ -6,7 +6,6 @@ import (
 	"chatroom_text/internal/services"
 	"chatroom_text/internal/services/chatroom"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -195,7 +194,7 @@ func (u userWebsocketHandle) writeMsg(ctx context.Context, msg []byte) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	slog.Info(fmt.Sprintf("%s", msg))
+	slog.Info(fmt.Sprintf("writing msg: %s", msg))
 
 	if err := u.conn.Write(ctx, websocket.MessageText, msg); err != nil {
 		slog.Error(err.Error())
@@ -230,16 +229,7 @@ func (u userWebsocketHandle) ReadLoop(ctx context.Context) error {
 
 		switch {
 		case msg.TextMessage != nil:
-			// @todo consider not changing conversions
-			var msgBytes models.WSTextMessageBytes
-			var err error
-			msgBytes, err = json.Marshal(msg.TextMessage)
-			if err != nil {
-				slog.Info("######################")
-				slog.Error("failed to marshal text message: %s", err)
-				continue
-			}
-			u.userService.ReceiveMessage(msgBytes)
+			u.userService.SendMessage(ctx, *msg.TextMessage)
 		case msg.ChatroomMessage != nil:
 			switch {
 			case msg.ChatroomMessage.Create != nil:

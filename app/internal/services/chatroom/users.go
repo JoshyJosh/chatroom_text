@@ -122,6 +122,19 @@ func (u User) EnterChatroom(ctx context.Context, chatroomID uuid.UUID) error {
 		u.ReceiveMessage(msgRaw)
 	}
 
+	slog.Debug("sending user name")
+	// @todo distribute user entered in chatroom
+	err = u.messageBroker.DistributeUserEntryMessage(
+		ctx,
+		chatroomID,
+		models.WSUserEntry{
+			ID:   u.user.ID.String(),
+			Name: u.user.Name,
+		})
+	if err != nil {
+		slog.Debug(fmt.Sprintf("failed to send user entry %v", err))
+	}
+
 	slog.Debug("sending enter message")
 	// Send user entry text message to all people in chatroom.
 	u.SendMessage(ctx, models.WSTextMessage{
@@ -157,13 +170,16 @@ func (u User) SendMessage(ctx context.Context, msg models.WSTextMessage) {
 		slog.Error("failed to insert chatroom log", err.Error())
 	}
 
-	msgBytes, err := json.Marshal(msg)
+	msgBytes, err := json.Marshal(models.WSMessage{
+		TextMessage: &msg,
+	})
 	if err != nil {
 		// @todo propagate error message to websocket
 		slog.Error("failed to marshal chatroom log", err.Error())
+		return
 	}
 
-	u.messageBroker.DistributeMessage(ctx, msgBytes)
+	u.messageBroker.DistributeMessage(ctx, chatroomID, msgBytes)
 }
 
 // Used to writing to this user directly, currently for initial noSQL data retrieval.
@@ -188,6 +204,8 @@ func (u User) ListenForMessages(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case msgRaw := <-msgBytesChan:
+				// @todo send in correct format. currently missing text wrapper.
+				slog.Info(fmt.Sprintf("sending to receive message: %s", msgRaw))
 				u.ReceiveMessage(msgRaw)
 			}
 		}
@@ -257,7 +275,7 @@ func (u User) UpdateChatroom(ctx context.Context, msg models.WSChatroomUpdateMes
 		return
 	}
 
-	u.messageBroker.DistributeMessage(ctx, updateMessage)
+	u.messageBroker.DistributeMessage(ctx, chatroomID, updateMessage)
 }
 
 func (u User) DeleteChatroom(ctx context.Context, msg models.WSChatroomDeleteMessage) {
@@ -289,7 +307,7 @@ func (u User) DeleteChatroom(ctx context.Context, msg models.WSChatroomDeleteMes
 		return
 	}
 
-	u.messageBroker.DistributeMessage(ctx, deleteMessage)
+	u.messageBroker.DistributeMessage(ctx, chatroomID, deleteMessage)
 }
 
 func (u User) InitialConnect(ctx context.Context) error {

@@ -13,9 +13,11 @@ type ChatroomMessageBroker interface {
 	// RemoveUser removes user from chatroom.
 	RemoveUser(chatroomID uuid.UUID) error
 	// DistributeMessage Distributes messages to all users in chatroom.
-	DistributeMessage(ctx context.Context, msgBytes models.WSTextMessageBytes) error
+	DistributeMessage(ctx context.Context, chatroomID uuid.UUID, msgBytes models.WSTextMessageBytes) error
 	// Listen listens to incoming messages and passes them to user message channel.
 	Listen(ctx context.Context, msgBytesChan chan<- models.WSTextMessageBytes)
+
+	DistributeUserEntryMessage(ctx context.Context, chatroomID uuid.UUID, msgBytes models.WSUserEntry) error
 }
 
 type ChatroomLogger interface {
