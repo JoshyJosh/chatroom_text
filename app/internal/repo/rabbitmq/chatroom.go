@@ -242,16 +242,16 @@ func (r RabbitMQBroker) Listen(ctx context.Context, msgBytesChan chan<- models.W
 }
 
 // @todo make this a thing in the interface.
-func (r RabbitMQBroker) DistributeUserEntryMessage(ctx context.Context, chatroomID uuid.UUID, msgBytes models.WSUserEntry) error {
+func (r RabbitMQBroker) DistributeUserEntryMessage(ctx context.Context, chatroomID uuid.UUID, wsUserEntry models.WSUserEntry) error {
 	sendCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	msgRawBytes, err := json.Marshal(msgBytes)
+	msgBytes, err := json.Marshal(wsUserEntry)
 	if err != nil {
-		return errors.Wrapf(err, "failed to distribute user message: %s", msgBytes.Name)
+		return errors.Wrapf(err, "failed to distribute user message: %s", wsUserEntry.Name)
 	}
 
-	slog.Info("publishing raw bytes: %s", msgBytes)
+	slog.Debug(fmt.Sprintf("publishing raw bytes: %s", string(msgBytes)))
 
 	err = r.channel.PublishWithContext(
 		sendCtx,
@@ -261,7 +261,7 @@ func (r RabbitMQBroker) DistributeUserEntryMessage(ctx context.Context, chatroom
 		false,                  // immediate
 		amqp.Publishing{
 			ContentType: "application/json",
-			Body:        msgRawBytes,
+			Body:        msgBytes,
 		},
 	)
 	if err != nil {

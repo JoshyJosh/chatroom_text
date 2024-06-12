@@ -17,7 +17,7 @@ type ChatroomMessageBroker interface {
 	// Listen listens to incoming messages and passes them to user message channel.
 	Listen(ctx context.Context, msgBytesChan chan<- models.WSTextMessageBytes)
 
-	DistributeUserEntryMessage(ctx context.Context, chatroomID uuid.UUID, msgBytes models.WSUserEntry) error
+	DistributeUserEntryMessage(ctx context.Context, chatroomID uuid.UUID, wsUserEntry models.WSUserEntry) error
 }
 
 type ChatroomLogger interface {

@@ -127,7 +127,7 @@ func TestSuccessfullyEnterMainChatroom(t *testing.T) {
 	wg.Wait()
 
 	expectedMessages := [][]byte{
-		[]byte(fmt.Sprintf(`{"chatroom":{"enter":{"chatroomName":"","chatroomID":"%s"}}}`, models.MainChatUUID.String())),
+		[]byte(fmt.Sprintf(`{"chatroom":{"enter":{"chatroomName":"","chatroomID":"%s","usersList":[]}}}`, models.MainChatUUID.String())),
 		[]byte(`{"text":{"msg":"entered chat","timestamp":"","userID":"6c665468-6fc4-487e-9a5a-1a4c271ec698","userName":"testuser","chatroomID":"00000000-0000-0000-0000-000000000001"}}`),
 	}
 
@@ -173,7 +173,7 @@ func TestSuccessfullyEnterTestChatroom(t *testing.T) {
 	wg.Wait()
 
 	expectedMessages := [][]byte{
-		[]byte(fmt.Sprintf(`{"chatroom":{"enter":{"chatroomName":"testChatroom","chatroomID":"%s"}}}`, chatroomUUID)),
+		[]byte(fmt.Sprintf(`{"chatroom":{"enter":{"chatroomName":"testChatroom","chatroomID":"%s","usersList":[]}}}`, chatroomUUID)),
 		[]byte(fmt.Sprintf(`{"text":{"msg":"entered chat","timestamp":"","userID":"6c665468-6fc4-487e-9a5a-1a4c271ec698","userName":"testuser","chatroomID":"%s"}}`, chatroomUUID)),
 	}
 
