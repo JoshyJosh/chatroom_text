@@ -122,7 +122,7 @@ func (u User) EnterChatroom(ctx context.Context, chatroomID uuid.UUID) error {
 		u.ReceiveMessage(msgRaw)
 	}
 
-	slog.Debug("sending user name")
+	slog.Info("sending user entry name")
 	// @todo distribute user entered in chatroom
 	err = u.messageBroker.DistributeUserEntryMessage(
 		ctx,
@@ -132,7 +132,7 @@ func (u User) EnterChatroom(ctx context.Context, chatroomID uuid.UUID) error {
 			Name: u.user.Name,
 		})
 	if err != nil {
-		slog.Debug(fmt.Sprintf("failed to send user entry %v", err))
+		slog.Info(fmt.Sprintf("failed to send user entry %v", err))
 	}
 
 	slog.Debug("sending enter message")

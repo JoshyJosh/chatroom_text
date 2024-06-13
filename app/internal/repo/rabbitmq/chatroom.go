@@ -32,8 +32,7 @@ var rabbitMQURL string
 // Separate users use separate rabbitmq channels for communication. The node uses the same connection.
 var channelMap sync.Map
 
-const CHANNEL_LOGS_EXCHANGE = "channel_logs"
-const CHANNEL_USERS_EXCHANGE = "channel_users"
+const CHATROOM_EXCHANGE = "chatroom_exchange"
 
 func InitRabbitMQClient() error {
 	slog.Info("initializing rabbitMQ")
@@ -56,31 +55,16 @@ func InitRabbitMQClient() error {
 	}
 
 	err = channel.ExchangeDeclare(
-		CHANNEL_LOGS_EXCHANGE, // name
-		"topic",               // type
-		false,                 // durable
-		true,                  // auto-deleted
-		false,                 // internal
-		false,                 // no-wait
-		nil,                   // arguments
+		CHATROOM_EXCHANGE, // name
+		"topic",           // type
+		false,             // durable
+		true,              // auto-deleted
+		false,             // internal
+		false,             // no-wait
+		nil,               // arguments
 	)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to declare %s exchange", CHANNEL_LOGS_EXCHANGE)
-		slog.Error(fmt.Sprint(err))
-		return err
-	}
-
-	err = channel.ExchangeDeclare(
-		CHANNEL_USERS_EXCHANGE, // name
-		"topic",                // type
-		false,                  // durable
-		true,                   // auto-deleted
-		false,                  // internal
-		false,                  // no-wait
-		nil,                    // arguments
-	)
-	if err != nil {
-		err = errors.Wrapf(err, "failed to declare %s exchange", CHANNEL_USERS_EXCHANGE)
+		err = errors.Wrapf(err, "failed to declare %s exchange", CHATROOM_EXCHANGE)
 		slog.Error(fmt.Sprint(err))
 		return err
 	}
@@ -153,22 +137,22 @@ func GetChatroomMessageBroker(user models.User) (repo.ChatroomMessageBroker, err
 
 func (r RabbitMQBroker) AddUser(chatroomID uuid.UUID) error {
 	err := r.channel.QueueBind(
-		r.queue.Name,          // name
-		chatroomID.String(),   // routing key
-		CHANNEL_LOGS_EXCHANGE, // exchange
-		false,                 // noWait
-		nil,                   // args
+		r.queue.Name,        // name
+		chatroomID.String(), // routing key
+		CHATROOM_EXCHANGE,   // exchange
+		false,               // noWait
+		nil,                 // args
 	)
 	if err != nil {
 		return errors.Wrapf(err, "failed to bind log queue for %s", chatroomID)
 	}
 
 	err = r.channel.QueueBind(
-		r.queue.Name,           // name
-		chatroomID.String(),    // routing key
-		CHANNEL_USERS_EXCHANGE, // exchange
-		false,                  // noWait
-		nil,                    // args
+		r.queue.Name,                 // name
+		chatroomID.String()+"_users", // routing key
+		CHATROOM_EXCHANGE,            // exchange
+		false,                        // noWait
+		nil,                          // args
 	)
 	if err != nil {
 		return errors.Wrapf(err, "failed to bind users queue for %s", chatroomID)
@@ -179,10 +163,10 @@ func (r RabbitMQBroker) AddUser(chatroomID uuid.UUID) error {
 
 func (r RabbitMQBroker) RemoveUser(chatroomID uuid.UUID) error {
 	err := r.channel.QueueUnbind(
-		r.queue.Name,          // name
-		chatroomID.String(),   // routing key
-		CHANNEL_LOGS_EXCHANGE, // exchange
-		nil,                   // args
+		r.queue.Name,        // name
+		chatroomID.String(), // routing key
+		CHATROOM_EXCHANGE,   // exchange
+		nil,                 // args
 	)
 	if err != nil {
 		return errors.Wrapf(err, "failed to bind queue for %s", chatroomID)
@@ -201,7 +185,7 @@ func (r RabbitMQBroker) DistributeMessage(ctx context.Context, chatroomID uuid.U
 
 	err := r.channel.PublishWithContext(
 		sendCtx,
-		CHANNEL_LOGS_EXCHANGE,        // exchange
+		CHATROOM_EXCHANGE,            // exchange
 		models.MainChatUUID.String(), // routing key
 		false,                        // mandatory
 		false,                        // immediate
@@ -241,24 +225,24 @@ func (r RabbitMQBroker) Listen(ctx context.Context, msgBytesChan chan<- models.W
 	}
 }
 
-// @todo make this a thing in the interface.
 func (r RabbitMQBroker) DistributeUserEntryMessage(ctx context.Context, chatroomID uuid.UUID, wsUserEntry models.WSUserEntry) error {
 	sendCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
+	// @todo make new message type for adding and removing users
 	msgBytes, err := json.Marshal(wsUserEntry)
 	if err != nil {
 		return errors.Wrapf(err, "failed to distribute user message: %s", wsUserEntry.Name)
 	}
 
-	slog.Debug(fmt.Sprintf("publishing raw bytes: %s", string(msgBytes)))
+	slog.Info(fmt.Sprintf("publishing distribute user entry message: %s", string(msgBytes)))
 
 	err = r.channel.PublishWithContext(
 		sendCtx,
-		CHANNEL_USERS_EXCHANGE, // exchange
-		r.queue.Name,           // routing key
-		false,                  // mandatory
-		false,                  // immediate
+		CHATROOM_EXCHANGE,            // exchange
+		chatroomID.String()+"_users", // routing key
+		false,                        // mandatory
+		false,                        // immediate
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        msgBytes,
