@@ -93,6 +93,12 @@ WS.onmessage = (event) => {
                     childNode.querySelector("p").innerText = newChatroomName;
                 }
             }
+        } else if (msgData.chatroom.hasOwnProperty("addUser")) {
+            let user = msgData.chatroom.addUser;
+            appendUserToList(user);
+        } else if (msgData.chatroom.hasOwnProperty("removeUser")) {
+            // @todo implement remove user
+            console.log("not implemented");
         }
     }
 };
@@ -250,7 +256,7 @@ function listUsers(users) {
 
 function appendUserToList(user) {
     let userLi = document.createElement("li"); 
-    userLi.setAttribute("userid", user);
+    userLi.setAttribute("userid", user.id);
     userLi.className = "userListEntry";
     userLi.innerText = user.name;
 

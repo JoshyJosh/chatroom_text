@@ -9,7 +9,9 @@ import (
 
 type ChatroomMessageBroker interface {
 	// AddUser adds an existing user to chatroom, returns error if user exists.
-	AddUser(chatroomID uuid.UUID) error
+	BindToMessageQueue(chatroomID uuid.UUID) error
+
+	BindToUsersQueue(chatroomID uuid.UUID) error
 	// RemoveUser removes user from chatroom.
 	RemoveUser(chatroomID uuid.UUID) error
 	// DistributeMessage Distributes messages to all users in chatroom.
@@ -17,7 +19,7 @@ type ChatroomMessageBroker interface {
 	// Listen listens to incoming messages and passes them to user message channel.
 	Listen(ctx context.Context, msgBytesChan chan<- models.WSTextMessageBytes)
 
-	DistributeUserEntryMessage(ctx context.Context, chatroomID uuid.UUID, wsUserEntry models.WSUserEntry) error
+	DistributeUserEntryMessage(ctx context.Context, chatroomID uuid.UUID, wsUserEntry models.ChatroomMessage) error
 }
 
 type ChatroomLogger interface {

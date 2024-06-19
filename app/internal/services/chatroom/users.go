@@ -53,7 +53,7 @@ func GetUserServicer(ctx context.Context, writeChan chan []byte, userData models
 func (u User) EnterChatroom(ctx context.Context, chatroomID uuid.UUID) error {
 	slog.Info("entering chatroomID: ", chatroomID.String())
 
-	if err := u.messageBroker.AddUser(chatroomID); err != nil {
+	if err := u.messageBroker.BindToMessageQueue(chatroomID); err != nil {
 		return err
 	}
 
@@ -127,12 +127,23 @@ func (u User) EnterChatroom(ctx context.Context, chatroomID uuid.UUID) error {
 	err = u.messageBroker.DistributeUserEntryMessage(
 		ctx,
 		chatroomID,
-		models.WSUserEntry{
-			ID:   u.user.ID.String(),
-			Name: u.user.Name,
-		})
+		models.ChatroomMessage{
+			AddUser: &models.WSChatroomUserEntry{
+				ChatroomID: chatroomID.String(),
+				User: models.WSUserEntry{
+					ID:   u.user.ID.String(),
+					Name: u.user.Name,
+				},
+			},
+		},
+	)
 	if err != nil {
 		slog.Info(fmt.Sprintf("failed to send user entry %v", err))
+	}
+
+	err = u.messageBroker.BindToUsersQueue(chatroomID)
+	if err != nil {
+		slog.Info(fmt.Sprintf("failed to bind user to roster exchange %v", err))
 	}
 
 	slog.Debug("sending enter message")
@@ -204,7 +215,6 @@ func (u User) ListenForMessages(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case msgRaw := <-msgBytesChan:
-				// @todo send in correct format. currently missing text wrapper.
 				slog.Info(fmt.Sprintf("sending to receive message: %s", msgRaw))
 				u.ReceiveMessage(msgRaw)
 			}

@@ -135,7 +135,7 @@ func GetChatroomMessageBroker(user models.User) (repo.ChatroomMessageBroker, err
 	return broker, nil
 }
 
-func (r RabbitMQBroker) AddUser(chatroomID uuid.UUID) error {
+func (r RabbitMQBroker) BindToMessageQueue(chatroomID uuid.UUID) error {
 	err := r.channel.QueueBind(
 		r.queue.Name,        // name
 		chatroomID.String(), // routing key
@@ -147,7 +147,11 @@ func (r RabbitMQBroker) AddUser(chatroomID uuid.UUID) error {
 		return errors.Wrapf(err, "failed to bind log queue for %s", chatroomID)
 	}
 
-	err = r.channel.QueueBind(
+	return nil
+}
+
+func (r RabbitMQBroker) BindToUsersQueue(chatroomID uuid.UUID) error {
+	err := r.channel.QueueBind(
 		r.queue.Name,                 // name
 		chatroomID.String()+"_users", // routing key
 		CHATROOM_EXCHANGE,            // exchange
@@ -225,14 +229,21 @@ func (r RabbitMQBroker) Listen(ctx context.Context, msgBytesChan chan<- models.W
 	}
 }
 
-func (r RabbitMQBroker) DistributeUserEntryMessage(ctx context.Context, chatroomID uuid.UUID, wsUserEntry models.WSUserEntry) error {
+// Use either ChatroomMessage.RemoveUser or ChatroomMessage.AddUser
+func (r RabbitMQBroker) DistributeUserEntryMessage(ctx context.Context, chatroomID uuid.UUID, wsUserEntryMessage models.ChatroomMessage) error {
 	sendCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
+	if wsUserEntryMessage.RemoveUser == nil && wsUserEntryMessage.AddUser == nil {
+		return errors.New("missing remove or add user message")
+	}
+
 	// @todo make new message type for adding and removing users
-	msgBytes, err := json.Marshal(wsUserEntry)
+	msgBytes, err := json.Marshal(models.WSMessage{
+		ChatroomMessage: &wsUserEntryMessage,
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to distribute user message: %s", wsUserEntry.Name)
+		return errors.Wrapf(err, "failed to distribute user message: %#v", wsUserEntryMessage)
 	}
 
 	slog.Info(fmt.Sprintf("publishing distribute user entry message: %s", string(msgBytes)))

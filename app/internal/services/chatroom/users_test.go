@@ -55,7 +55,11 @@ func (MockNoSQL) StoreUsername(ctx context.Context, user models.User) error {
 
 type MockUserRepo struct{}
 
-func (MockUserRepo) AddUser(chatroomID uuid.UUID) error {
+func (MockUserRepo) BindToMessageQueue(chatroomID uuid.UUID) error {
+	return nil
+}
+
+func (MockUserRepo) BindToUsersQueue(chatroomID uuid.UUID) error {
 	return nil
 }
 
@@ -69,7 +73,7 @@ func (MockUserRepo) DistributeMessage(ctx context.Context, chatroomID uuid.UUID,
 
 func (MockUserRepo) Listen(ctx context.Context, msgBytesChan chan<- models.WSTextMessageBytes) {}
 
-func (MockUserRepo) DistributeUserEntryMessage(ctx context.Context, chatroomID uuid.UUID, msgBytes models.WSUserEntry) error {
+func (MockUserRepo) DistributeUserEntryMessage(ctx context.Context, chatroomID uuid.UUID, msgBytes models.ChatroomMessage) error {
 	return nil
 }
 

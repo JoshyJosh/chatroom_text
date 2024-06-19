@@ -30,6 +30,10 @@ type ChatroomMessage struct {
 
 	// Used for users to invite users in chatrooms.
 	Enter *WSChatroomEnterMessage `json:"enter,omitempty"`
+
+	// For real time user entries into chatroom.
+	RemoveUser *WSChatroomUserEntry `json:"removeUser,omitempty"`
+	AddUser    *WSChatroomUserEntry `json:"addUser,omitempty"`
 }
 
 type WSChatroomCreateMessage struct {
@@ -52,6 +56,11 @@ type WSChatroomEnterMessage struct {
 	ChatroomName string        `json:"chatroomName"`
 	ChatroomID   string        `json:"chatroomID"`
 	UserList     []WSUserEntry `json:"usersList"` // list of users present in chatroom
+}
+
+type WSChatroomUserEntry struct {
+	ChatroomID string      `json:"chatroomID"`
+	User       WSUserEntry `json:"user"`
 }
 
 type WSUserEntry struct {
