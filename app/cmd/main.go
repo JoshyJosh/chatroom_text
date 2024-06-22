@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"text/template"
 	"time"
 
 	"chatroom_text/internal/handlers"
@@ -20,6 +22,8 @@ import (
 func main() {
 	portFlag := flag.Int("port", 8080, "Listen address")
 	flag.Parse()
+
+	prepareJSFiles()
 
 	httpPort := fmt.Sprintf(":%d", *portFlag)
 
@@ -61,4 +65,24 @@ func main() {
 	}
 
 	log.Fatal(srv.ListenAndServe())
+}
+
+type JSScriptData struct {
+	HostURI string
+}
+
+func prepareJSFiles() {
+	wsHost := os.Getenv("WS_HOST")
+	if wsHost == "" {
+		panic("missing WS_HOST env variable")
+	}
+	t, err := template.ParseFiles("./templates/index.js.template")
+	if err != nil {
+		panic(err)
+	}
+
+	data := bytes.NewBuffer([]byte{})
+	t.Execute(data, JSScriptData{wsHost})
+
+	os.WriteFile("./static/index.js", data.Bytes(), 0644)
 }

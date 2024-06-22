@@ -13,6 +13,7 @@ services:
     networks:
       - app_network
     environment:
+      - WS_HOST=127.0.0.1
       - LOGIN_URL=https://127.0.0.1:4455/login
       - KRATOS_URL=http://kratos:4433
       - MONGODB_URI=mongodb://mongodb:27017

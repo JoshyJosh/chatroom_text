@@ -12,7 +12,7 @@ var currentChatroomID = "";
 
 console.log("establishing websocket");
 // @todo render url via template.
-WS = new WebSocket('wss://127.0.0.1/websocket/');
+WS = new WebSocket('wss://{{ .HostURI }}/websocket/');
 WS.onopen = (event) => {
     console.log("onopen event: ", event);
 };
