@@ -2,3 +2,6 @@
 vendor/
 cert.pem
 key.pem
+app/static/index.js
+app/main
+docker-compose.override.yml

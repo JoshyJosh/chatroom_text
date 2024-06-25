@@ -1,0 +1,123 @@
+services:
+  chatroom:
+    build: 
+      context: .
+      target: dev-runner
+    volumes:
+      - ./app:/app
+    depends_on:
+      mongodb:
+        condition: service_started
+      kratos:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - app_network
+    environment:
+      - WS_HOST=127.0.0.1
+      - LOGIN_URL=https://127.0.0.1:4455/login
+      - KRATOS_URL=http://kratos:4433
+      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_DB=chatroom
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/ # todo create separate user for rabbitmq
+
+#   mongodb:
+#     build: ./mongo
+#     ports:
+#       - "27017:27017"
+#     networks:
+#       - app_network
+  
+#   kratos-migrate:
+#     image: oryd/kratos:v1.0.0
+#     environment:
+#       - DSN=sqlite:///var/lib/sqlite/db.sqlite?_fk=true&mode=rwc
+#     volumes:
+#       - type: volume
+#         source: kratos-sqlite
+#         target: /var/lib/sqlite
+#         read_only: false
+#       - type: bind
+#         source: ./kratos/email-password
+#         target: /etc/config/kratos
+#     command: -c /etc/config/kratos/kratos.yml migrate sql -e --yes
+#     restart: on-failure
+#     networks:
+#       - app_network
+
+#   kratos-selfservice-ui-node:
+#     image: oryd/kratos-selfservice-ui-node:v1.0.0
+#     environment:
+#       - PORT=4455
+#       - KRATOS_PUBLIC_URL=http://kratos:4433/
+#       - KRATOS_BROWSER_URL=https://127.0.0.1:4433/
+#     networks:
+#       - app_network
+#     restart: on-failure
+
+#   kratos:
+#     depends_on:
+#       - kratos-migrate
+#     image: oryd/kratos:v1.0.0
+#     restart: unless-stopped
+#     environment:
+#       - DSN=sqlite:///var/lib/sqlite/db.sqlite?_fk=true
+#       - LOG_LEVEL=trace
+#     command: serve -c /etc/config/kratos/kratos.yml --dev --watch-courier
+#     volumes:
+#       - type: volume
+#         source: kratos-sqlite
+#         target: /var/lib/sqlite
+#         read_only: false
+#       - type: bind
+#         source: ./kratos/email-password
+#         target: /etc/config/kratos
+#     networks:
+#       - app_network
+
+#   mailslurper:
+#     image: oryd/mailslurper:latest-smtps
+#     ports:
+#       - '4436:4436'
+#       - '4437:4437'
+#     networks:
+#       - app_network
+    
+#   nginx:
+#     image: nginx:latest
+#     ports:
+#       - "80:80"
+#       - "443:443"
+#       - "4433:4433"
+#       - "4455:4455"
+#     volumes:
+#       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+#       - ./certs/:/etc/nginx/certs/
+#     depends_on:
+#       - chatroom
+#     networks:
+#       - app_network
+
+#   rabbitmq:
+#     image: rabbitmq:3-management
+#     ports:
+#       # - "5672:5672"
+#       - "15672:15672"
+#     healthcheck:
+#       test: rabbitmq-diagnostics -q ping
+#       interval: 30s
+#       timeout: 30s
+#       retries: 3
+#     networks:
+#       - app_network
+
+# volumes:
+#   postgresvol:
+#     external: false
+#   kratos-sqlite:
+#     external: false
+
+# networks:
+#   app_network:
+#     driver: bridge

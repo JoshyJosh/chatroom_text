@@ -1,6 +1,8 @@
 services:
   chatroom:
-    build: .
+    build: 
+      context: .
+      target: runner
     depends_on:
       mongodb:
         condition: service_started
