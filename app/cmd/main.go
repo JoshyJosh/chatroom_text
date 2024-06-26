@@ -12,6 +12,7 @@ import (
 
 	"chatroom_text/internal/handlers"
 	"chatroom_text/internal/middleware"
+	"chatroom_text/internal/models"
 	"chatroom_text/internal/repo/nosql"
 	"chatroom_text/internal/repo/rabbitmq"
 
@@ -67,10 +68,6 @@ func main() {
 	log.Fatal(srv.ListenAndServe())
 }
 
-type JSScriptData struct {
-	HostURI string
-}
-
 func prepareJSFiles() {
 	wsHost := os.Getenv("WS_HOST")
 	if wsHost == "" {
@@ -82,7 +79,7 @@ func prepareJSFiles() {
 	}
 
 	data := bytes.NewBuffer([]byte{})
-	t.Execute(data, JSScriptData{wsHost})
+	t.Execute(data, models.JSScriptData{wsHost})
 
 	os.WriteFile("./static/index.js", data.Bytes(), 0644)
 }

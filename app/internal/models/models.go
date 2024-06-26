@@ -192,3 +192,8 @@ func MongoUUIDToGoUUID(pUUID primitive.Binary) uuid.UUID {
 func GoUUIDToMongoUUID(gUUID uuid.UUID) primitive.Binary {
 	return primitive.Binary{Subtype: 0x04, Data: []byte(gUUID[:])}
 }
+
+// Used for templating
+type JSScriptTemplateData struct {
+	HostURI string
+}
