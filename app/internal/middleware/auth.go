@@ -7,24 +7,23 @@ import (
 	"net/http"
 	"os"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	ory "github.com/ory/client-go"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 type kratosMiddleware struct {
 	Client *ory.APIClient
-	log    *slog.Logger
+	logger *log.Entry
 }
 
-func GetAuthClient(logger *slog.Logger) *kratosMiddleware {
+func GetAuthClient(logger *log.Entry) *kratosMiddleware {
 	return newAuthClient(logger)
 }
 
-func newAuthClient(logger *slog.Logger) *kratosMiddleware {
+func newAuthClient(logger *log.Entry) *kratosMiddleware {
 	kratosURL := os.Getenv("KRATOS_URL")
 	configuration := ory.NewConfiguration()
 	configuration.Servers = []ory.ServerConfiguration{
@@ -35,7 +34,7 @@ func newAuthClient(logger *slog.Logger) *kratosMiddleware {
 
 	return &kratosMiddleware{
 		Client: ory.NewAPIClient(configuration),
-		log:    logger,
+		logger: logger,
 	}
 }
 
@@ -44,13 +43,13 @@ func (k *kratosMiddleware) SessionMiddleware() gin.HandlerFunc {
 		session, err := k.getOrySession(c, c.Request)
 		loginURL := os.Getenv("LOGIN_URL")
 		if err != nil {
-			slog.Info("Redirecting to login")
+			k.logger.Info("Redirecting to login")
 			c.Redirect(http.StatusTemporaryRedirect, loginURL)
 			return
 		}
 
 		if !*session.Active {
-			slog.Info("inactive session, redirecting back to chatroom")
+			k.logger.Info("inactive session, redirecting back to chatroom")
 			c.Redirect(http.StatusMovedPermanently, "https://127.0.0.1/")
 			return
 		}
@@ -99,7 +98,7 @@ func (k *kratosMiddleware) GetUserData(ctx context.Context, r *http.Request) (mo
 		return userData, errors.New("failed to find username")
 	}
 
-	slog.Debug(fmt.Sprintf("Got user data: %#v", userData))
+	k.logger.Debug(fmt.Sprintf("Got user data: %#v", userData))
 
 	return userData, nil
 }

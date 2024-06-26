@@ -5,10 +5,11 @@ import (
 	"chatroom_text/internal/repo"
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -19,6 +20,7 @@ import (
 
 type MongoRepo struct {
 	client *mongo.Client
+	logger *log.Entry
 }
 
 var uri, database string
@@ -43,8 +45,11 @@ func GetChatroomNoSQLRepoer(ctx context.Context) (repo.ChatroomLogger, error) {
 		return nil, errors.Wrap(err, "failed to connect to mongo instance")
 	}
 
+	logger := log.WithField("stage", "nosqlRepoer")
+
 	return MongoRepo{
 		client: client,
+		logger: logger,
 	}, nil
 }
 
@@ -66,7 +71,7 @@ func (m MongoRepo) SelectChatroomLogs(ctx context.Context, params models.SelectD
 	for cursor.Next(ctx) {
 		var result models.NoSQLChatroomLog
 		if err := cursor.Decode(&result); err != nil {
-			slog.Error(fmt.Sprintf("failed to decode NoSQLChatroomUserEntry: %s", cursor.Current.String()))
+			m.logger.Error("failed to decode NoSQLChatroomUserEntry: ", cursor.Current.String())
 			continue
 		}
 
@@ -296,8 +301,8 @@ func (m MongoRepo) SelectChatroomUsers(ctx context.Context, chatroomID uuid.UUID
 }
 
 func (m MongoRepo) StoreUsername(ctx context.Context, user models.User) error {
-	slog.Info("storing user")
-	defer slog.Info("stored user")
+	m.logger.Info("storing user")
+	defer m.logger.Info("stored user")
 	collection := m.client.Database(database, nil).Collection("users_list")
 
 	// Convert user ID once and reuse it.
@@ -325,7 +330,7 @@ func (m MongoRepo) StoreUsername(ctx context.Context, user models.User) error {
 			return nil
 		}
 
-		slog.Error(fmt.Sprint(err))
+		m.logger.Error(err)
 	}
 
 	return err

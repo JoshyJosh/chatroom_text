@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
 	"sync"
 	"time"
@@ -15,6 +14,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 )
 
 type RabbitMQBroker struct {
@@ -23,6 +23,7 @@ type RabbitMQBroker struct {
 	enteredChatrooms *sync.Map
 	userUUID         uuid.UUID
 	msgChan          chan models.WSTextMessageBytes
+	logger           *log.Entry
 }
 
 // Client is
@@ -35,22 +36,23 @@ var channelMap sync.Map
 const CHATROOM_EXCHANGE = "chatroom_exchange"
 
 func InitRabbitMQClient() error {
-	slog.Info("initializing rabbitMQ")
-	defer slog.Info("initialized rabbitMQ")
+	logger := log.WithField("stage", "InitRabbitMQClient")
+	logger.Info("initializing rabbitMQ")
+	defer logger.Info("initialized rabbitMQ")
 
 	rabbitMQURL = os.Getenv("RABBITMQ_URL")
 	var err error
 	rabbitMQConn, err = amqp.Dial(rabbitMQURL)
 	if err != nil {
 		err = errors.Wrap(err, "failed to connect to RabbitMQ")
-		slog.Error(fmt.Sprint(err))
+		logger.Error(err)
 		return err
 	}
 
 	channel, err := rabbitMQConn.Channel()
 	if err != nil {
 		err = errors.Wrap(err, "failed to connect to RabbitMQ channel")
-		slog.Error(fmt.Sprint(err))
+		logger.Error(err)
 		return err
 	}
 
@@ -65,7 +67,7 @@ func InitRabbitMQClient() error {
 	)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to declare %s exchange", CHATROOM_EXCHANGE)
-		slog.Error(fmt.Sprint(err))
+		logger.Error(err)
 		return err
 	}
 
@@ -108,7 +110,6 @@ func declareQueue(userUUID uuid.UUID, channel *amqp.Channel) (*amqp.Queue, error
 		return nil, errors.Wrap(err, "Failed to declare a queue")
 	}
 
-	slog.Debug(fmt.Sprintf("Connected user %s", userUUID))
 	return &queue, nil
 }
 
@@ -119,10 +120,17 @@ func GetChatroomMessageBroker(user models.User) (repo.ChatroomMessageBroker, err
 		return nil, err
 	}
 
+	logger := log.WithFields(log.Fields{
+		"stage":  "chatroomMessageBroker",
+		"userID": user.ID.String(),
+	})
+
 	queue, err := declareQueue(user.ID, channel)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create connection")
 	}
+
+	logger.Debug("Connected user")
 
 	broker := RabbitMQBroker{
 		channel:          channel,
@@ -130,6 +138,7 @@ func GetChatroomMessageBroker(user models.User) (repo.ChatroomMessageBroker, err
 		userUUID:         user.ID,
 		enteredChatrooms: &sync.Map{},
 		msgChan:          make(chan models.WSTextMessageBytes),
+		logger:           logger,
 	}
 
 	return broker, nil
@@ -185,7 +194,7 @@ func (r RabbitMQBroker) DistributeMessage(ctx context.Context, chatroomID uuid.U
 	sendCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	slog.Info(fmt.Sprintf("distributing message: %s", msgBytes))
+	r.logger.Info(fmt.Sprintf("distributing message: %s", msgBytes))
 
 	err := r.channel.PublishWithContext(
 		sendCtx,
@@ -214,7 +223,7 @@ func (r RabbitMQBroker) Listen(ctx context.Context, msgBytesChan chan<- models.W
 	)
 
 	if err != nil {
-		slog.Error(fmt.Sprint(errors.Wrapf(err, "failed to consume messages for user %s", r.userUUID)))
+		r.logger.Error(errors.Wrapf(err, "failed to consume messages for user %s", r.userUUID))
 		return
 	}
 
@@ -246,7 +255,7 @@ func (r RabbitMQBroker) DistributeUserEntryMessage(ctx context.Context, chatroom
 		return errors.Wrapf(err, "failed to distribute user message: %#v", wsUserEntryMessage)
 	}
 
-	slog.Info(fmt.Sprintf("publishing distribute user entry message: %s", string(msgBytes)))
+	r.logger.Debugf("publishing distribute user entry message: %s", msgBytes)
 
 	err = r.channel.PublishWithContext(
 		sendCtx,

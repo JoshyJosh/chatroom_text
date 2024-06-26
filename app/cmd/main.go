@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"text/template"
@@ -17,7 +16,7 @@ import (
 	"chatroom_text/internal/repo/rabbitmq"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/exp/slog"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -28,18 +27,13 @@ func main() {
 
 	httpPort := fmt.Sprintf(":%d", *portFlag)
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil).WithAttrs(
-		[]slog.Attr{
-			{
-				Key:   "stage",
-				Value: slog.StringValue("main"),
-			},
-		},
-	))
+	logger := log.WithFields(log.Fields{
+		"stage": "main",
+	})
 
 	nosql.InitAddr()
 
-	logger.Info("starting")
+	logger.Info("starting with address: ", *portFlag)
 	defer logger.Info("stopping")
 
 	router := gin.Default()
@@ -79,7 +73,7 @@ func prepareJSFiles() {
 	}
 
 	data := bytes.NewBuffer([]byte{})
-	t.Execute(data, models.JSScriptData{wsHost})
+	t.Execute(data, models.JSScriptTemplateData{HostURI: wsHost})
 
 	os.WriteFile("./static/index.js", data.Bytes(), 0644)
 }
