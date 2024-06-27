@@ -21,6 +21,7 @@ services:
       - MONGODB_URI=mongodb://mongodb:27017
       - MONGODB_DB=chatroom
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/ # todo create separate user for rabbitmq
+      - LOG_LEVEL=debug
 
 #   mongodb:
 #     build: ./mongo

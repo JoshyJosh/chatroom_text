@@ -23,7 +23,10 @@ func main() {
 	portFlag := flag.Int("port", 8080, "Listen address")
 	flag.Parse()
 
+	// prepare js statements
 	prepareJSFiles()
+
+	setLogLevel()
 
 	httpPort := fmt.Sprintf(":%d", *portFlag)
 
@@ -76,4 +79,25 @@ func prepareJSFiles() {
 	t.Execute(data, models.JSScriptTemplateData{HostURI: wsHost})
 
 	os.WriteFile("./static/index.js", data.Bytes(), 0644)
+}
+
+func setLogLevel() {
+	switch os.Getenv("LOG_LEVEL") {
+	case "panic":
+		log.SetLevel(log.PanicLevel)
+	case "fatal":
+		log.SetLevel(log.FatalLevel)
+	case "error":
+		log.SetLevel(log.ErrorLevel)
+	case "warn":
+		log.SetLevel(log.WarnLevel)
+	case "info":
+		log.SetLevel(log.InfoLevel)
+	case "debug":
+		log.SetLevel(log.DebugLevel)
+	case "trace":
+		log.SetLevel(log.TraceLevel)
+	default:
+		log.SetLevel(log.InfoLevel)
+	}
 }
